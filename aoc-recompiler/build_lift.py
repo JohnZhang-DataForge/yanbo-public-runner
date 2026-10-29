@@ -2,6 +2,7 @@
 """Compile/link generated functions with CPU dispatch; not a Switch OS runtime."""
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -26,16 +27,25 @@ int main(void) { printf("Native link check: %u lifted functions. No game entry e
     def compile_one(source):
         output=objects/(source.stem+'.o')
         log=objects/(source.stem+'.log')
+        stamp=objects/(source.stem+'.sha256')
+        identity=hashlib.sha256(compiler.encode()+Path(__file__).read_bytes()+source.read_bytes()+b''.join(p.read_bytes() for p in sorted(directory.glob('*.h')))).hexdigest()
+        if output.exists() and stamp.exists() and stamp.read_text()==identity:
+            return output
         command=[compiler,'-std=gnu11','-O0','-mcx16','-DA64_NO_MUSTTAIL',
-            '-D_POSIX_C_SOURCE=200809L','-I',str(directory),'-c',str(source),'-o',str(output)]
+            '-D_POSIX_C_SOURCE=200809L','-Werror=implicit-function-declaration','-I',str(directory),'-c',str(source),'-o',str(output)]
         with log.open('w') as stream:
             result=subprocess.run(command,stdout=stream,stderr=subprocess.STDOUT)
         if result.returncode:raise RuntimeError('Compilation failed: '+str(log))
+        stamp.write_text(identity)
         return output
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
         futures=[pool.submit(compile_one,source) for source in sources]
         for number,future in enumerate(concurrent.futures.as_completed(futures),1):
-            future.result()
+            try:
+                future.result()
+            except Exception:
+                for pending in futures: pending.cancel()
+                raise
             if number%10==0 or number==len(sources):print(f'Compiled {number}/{len(sources)} translation units',flush=True)
     executable=directory/('aoc-link-probe.exe' if os.name=='nt' else 'aoc-link-probe')
     response=directory/'objects.rsp'

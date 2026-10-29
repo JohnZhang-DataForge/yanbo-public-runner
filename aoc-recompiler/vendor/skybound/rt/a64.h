@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <math.h> /* Emitted FP operations require declarations. */
 
 typedef struct GuestContext {
     uint64_t x[32];             /* x[31] is SP: suyu's translator spells SP as x[31] where the encoding means SP */

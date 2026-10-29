@@ -41,3 +41,7 @@ Multi-function lifting/runtime import:
   available when that define is omitted.
 
 No HOS services, renderer, or game-specific hooks have been imported by this step.
+
+Additional runtime-header fix: include `<math.h>` so generated floating-point
+operations have proper C declarations. Full-lift builds reject implicit function
+declarations rather than accepting potentially incorrect calling conventions.
