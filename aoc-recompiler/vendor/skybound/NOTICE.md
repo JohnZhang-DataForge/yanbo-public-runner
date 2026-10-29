@@ -45,3 +45,5 @@ No HOS services, renderer, or game-specific hooks have been imported by this ste
 Additional runtime-header fix: include `<math.h>` so generated floating-point
 operations have proper C declarations. Full-lift builds reject implicit function
 declarations rather than accepting potentially incorrect calling conventions.
+
+Local SVC emitter change: save the guest instruction address in context.pc before invoking the host service hook, for accurate stop diagnostics.

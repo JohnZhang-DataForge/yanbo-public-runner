@@ -9,6 +9,8 @@ import tempfile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from aoc_image import Image
+from build_lift import build as build_cpu_probe
+from build_os import build as build_os_probe
 from aoc_lift import lift,ROOT
 from test_image import module,symbol
 
@@ -27,3 +29,8 @@ with tempfile.TemporaryDirectory() as temporary:
     if os.name!='nt':command+=['-lm','-latomic']
     subprocess.run(command,check=True)
     subprocess.run([str(executable),str(out/'image.bin')],check=True,timeout=30)
+    build_cpu_probe(out,jobs=2)
+    os_probe=build_os_probe(out)
+    result=subprocess.run([str(os_probe),str(out/'image.bin')],check=True,capture_output=True,text=True,timeout=30)
+    assert 'stop=2' in result.stderr,result.stderr
+    print('OS diagnostic build and synthetic guest entry execution passed')

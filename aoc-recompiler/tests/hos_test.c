@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-extern void f_08000000(Ctx *);
-extern void f_08000010(Ctx *);
+extern void f_08000000(Ctx *A64_NOESC);
+extern void f_08000010(Ctx *A64_NOESC);
 static void set_heap(Ctx *c,uint64_t size){c->x[1]=size;a64_svc(c,1);}
 int main(int argc,char **argv) {
     assert(argc==2);

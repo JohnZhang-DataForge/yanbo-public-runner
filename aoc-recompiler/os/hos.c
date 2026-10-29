@@ -2,7 +2,9 @@
  * Single-thread bootstrap HLE for translated code. Not a Horizon kernel.
  * Register ABI reference: switchbrew.org/wiki/SVC and switchbrew/libnx svc.h.
  */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "hos.h"
 #include <errno.h>
 #include <setjmp.h>

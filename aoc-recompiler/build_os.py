@@ -20,7 +20,7 @@ def build(directory):
     for name in ('hos','boot_main'):
         target=objects/('os_'+name+'.o')
         subprocess.run([compiler,'-std=gnu11','-O0','-mcx16','-DA64_NO_MUSTTAIL',
-            '-D_POSIX_C_SOURCE=200809L','-Werror=implicit-function-declaration',
+            '-D_POSIX_C_SOURCE=200809L','-D_GNU_SOURCE','-Werror=implicit-function-declaration',
             '-include',str(headers/'a64.h'),'-I',str(headers),'-I',str(directory),'-I',str(ROOT/'os'),
             '-c',str(ROOT/'os'/(name+'.c')),'-o',str(target)],check=True)
         extra.append(target)

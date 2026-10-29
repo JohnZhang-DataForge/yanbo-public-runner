@@ -1,0 +1,10 @@
+__pycache__/
+build/
+dist/
+vendor/skybound/build/
+game/
+exefs/
+romfs/
+dlcfs/
+*.keys
+Firmware*.zip
