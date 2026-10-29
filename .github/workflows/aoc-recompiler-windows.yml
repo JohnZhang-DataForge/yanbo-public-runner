@@ -30,11 +30,16 @@ jobs:
           python -m pip install pyinstaller==6.16.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m PyInstaller --onefile --name aoc-recompile recompile.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m PyInstaller --onefile --name aoc-tool aoc_tool.py
       - name: Test packaged executable
         working-directory: aoc-recompiler
         run: python tests/smoke_package.py dist/aoc-recompile.exe
+      - name: Test packaged unified tool
+        working-directory: aoc-recompiler
+        run: python tests/smoke_tool.py dist/aoc-tool.exe
       - uses: actions/upload-artifact@v4
         with:
           name: aoc-recompiler-windows-prototype
-          path: aoc-recompiler/dist/aoc-recompile.exe
+          path: aoc-recompiler/dist/*.exe
           if-no-files-found: error
