@@ -15,3 +15,14 @@ This import is an experiment, not a complete game runtime. Generated helpers
 must use this emitter's GuestContext contract. Do not substitute the small
 independent prototype's GuestState or claim that successful code generation
 proves a game can boot.
+
+Additional source import for offline module analysis:
+
+- `a64-kit/tools/nso.py` -> `tools/nso_metadata.py`.
+- Original Skybound MIT license retained as `SKYBOUND_LICENSE` (NotRexed, 2026).
+- Local changes: use our bounded LZ4 decoder instead of external lz4; retain
+  symbol visibility/section and relocation symbol indexes for correct binding.
+
+`aoc_image.py` implements the offline image/analysis adapter under GPL-2.0-or-later.
+It verifies the exact AoC module profile and hashes before invoking the metadata
+parser. No upstream game-specific runtime hooks are imported.
