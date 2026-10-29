@@ -26,3 +26,18 @@ Additional source import for offline module analysis:
 `aoc_image.py` implements the offline image/analysis adapter under GPL-2.0-or-later.
 It verifies the exact AoC module profile and hashes before invoking the metadata
 parser. No upstream game-specific runtime hooks are imported.
+
+
+Multi-function lifting/runtime import:
+
+- `a64-kit/lift/a64_lift.py`, `a64_rtgen.py`, `a64emit.py` copied to `lift/`.
+- `a64-kit/rt/a64.h` and `a64_rt.c` copied to `rt/`.
+- Original Skybound MIT license is retained as `SKYBOUND_LICENSE`; generated
+  suyu helpers and emitter retain their applicable GPL notices.
+- New `lift/build_emit.py` adapts compiler discovery to our native build helper.
+- Local runtime-header change: `A64_NO_MUSTTAIL` permits a regular C-call
+  fallback for GCC diagnostic builds. It does not guarantee bounded host stack
+  use for arbitrary guest tail recursion. Clang's original musttail path remains
+  available when that define is omitted.
+
+No HOS services, renderer, or game-specific hooks have been imported by this step.

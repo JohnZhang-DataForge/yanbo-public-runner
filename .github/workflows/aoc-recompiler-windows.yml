@@ -27,6 +27,9 @@ jobs:
       - name: Build and execute Skybound ARM64 backend test
         working-directory: aoc-recompiler
         run: python tests/check_skybound.py
+      - name: Compile and execute multi-function indirect dispatch
+        working-directory: aoc-recompiler
+        run: python tests/check_multifunction.py
       - name: Package translator as Windows executable
         working-directory: aoc-recompiler
         run: |
@@ -46,3 +49,4 @@ jobs:
           name: aoc-recompiler-windows-prototype
           path: aoc-recompiler/dist/*.exe
           if-no-files-found: error
+
