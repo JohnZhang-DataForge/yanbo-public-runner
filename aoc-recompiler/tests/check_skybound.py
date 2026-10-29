@@ -22,4 +22,8 @@ with tempfile.TemporaryDirectory() as temporary:
     executable = root/('test.exe' if os.name=='nt' else 'test')
     subprocess.run([compiler,'-std=c++20',str(root/'test.cpp'),'-o',str(executable)],check=True)
     subprocess.run([str(executable)],check=True)
+    if os.name == 'nt':
+        import _ctypes
+        _ctypes.FreeLibrary(backend.lib._handle)
+        backend.lib = None
     print('Skybound emitter: built from source; emitted C++ compiled and executed; integer, NZCV and RET checks passed')
