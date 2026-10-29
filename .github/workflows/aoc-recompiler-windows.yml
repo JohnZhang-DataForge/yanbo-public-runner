@@ -30,6 +30,9 @@ jobs:
       - name: Compile and execute multi-function indirect dispatch
         working-directory: aoc-recompiler
         run: python tests/check_multifunction.py
+      - name: Execute lifted guest OS service tests
+        working-directory: aoc-recompiler
+        run: python tests/check_os.py
       - name: Package translator as Windows executable
         working-directory: aoc-recompiler
         run: |

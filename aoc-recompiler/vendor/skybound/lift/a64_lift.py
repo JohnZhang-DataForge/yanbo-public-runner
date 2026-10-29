@@ -1239,7 +1239,7 @@ class Lifter:
                     out.append("A64_IJUMP(c, c->x[%d]); return;" % k[1])
                 falls = False
             elif kind == "svc":
-                out.append("a64_svc(c, %du);" % k[1])
+                out.append("c->pc = 0x%xULL; a64_svc(c, %du);" % (pc, k[1]))
             elif kind == "trap":
                 out.append("a64_trap(c, 0x%xULL, 0x%08xu); return;" % (pc, w))
                 falls = False
