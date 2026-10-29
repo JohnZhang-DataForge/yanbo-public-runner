@@ -24,6 +24,9 @@ jobs:
       - name: Test generated native code
         working-directory: aoc-recompiler
         run: python -m unittest discover -s tests -v
+      - name: Build and execute Skybound ARM64 backend test
+        working-directory: aoc-recompiler
+        run: python tests/check_skybound.py
       - name: Package translator as Windows executable
         working-directory: aoc-recompiler
         run: |
