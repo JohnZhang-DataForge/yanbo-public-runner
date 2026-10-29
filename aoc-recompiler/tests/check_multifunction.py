@@ -9,6 +9,7 @@ import tempfile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from aoc_image import Image, BASE
+from build_lift import build as build_probe
 from aoc_lift import lift
 from test_image import module,symbol
 
@@ -33,4 +34,5 @@ return c.x[0]==50 && c.vreg[0][0]==0x3fa00000 && !c.halted ? 0 : 1; }
     if os.name!='nt':command+=['-lm','-latomic']
     subprocess.run(command,check=True)
     subprocess.run([str(executable)],check=True,timeout=15)
-    print('Multi-function lift + native indirect dispatch passed')
+    build_probe(out,jobs=2)
+    print('Multi-function lift + native indirect dispatch + diagnostic build passed')
