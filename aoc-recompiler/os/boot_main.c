@@ -13,6 +13,8 @@ int main(int argc,char **argv) {
     Hos *os=hos_create();
     if(!os){fprintf(stderr,"Cannot reserve the guest address window\n");return 1;}
     if(!hos_load_image(os,argv[1])){fprintf(stderr,"Cannot load linked image\n");hos_destroy(os);return 1;}
+    const char *romfs=getenv("HOS_ROMFS_PATH");
+    if(romfs && !hos_mount_romfs(os,romfs)){fprintf(stderr,"Cannot mount a valid read-only RomFS image\n");hos_destroy(os);return 1;}
     Ctx context;hos_context(os,&context);
     int reason=HOS_STOP_RETURNED;
 #ifdef HOS_HAS_STARTUP

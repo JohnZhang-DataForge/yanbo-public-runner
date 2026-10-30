@@ -15,9 +15,12 @@ static void set_heap(Ctx *c,uint64_t size){c->x[1]=size;a64_svc(c,1);}
 #include "threads_test.inc"
 #include "sync_test.inc"
 int main(int argc,char **argv) {
-    assert(argc==2);
+    assert(argc==3);
     Hos *os=hos_create();assert(os);
     assert(hos_load_image(os,argv[1]));
+    assert(!hos_mount_romfs(os,argv[1]));
+    assert(hos_mount_romfs(os,argv[2]));
+    assert(!hos_mount_romfs(os,argv[2]));
     Ctx c;hos_context(os,&c);
     assert(c.x[31]==HOS_STACK_BASE+HOS_STACK_SIZE && c.tpidrro_el0==HOS_TLS_BASE);
     assert(c.x[1]==HOS_MAIN_HANDLE && !hos_access(os,0,4,1));

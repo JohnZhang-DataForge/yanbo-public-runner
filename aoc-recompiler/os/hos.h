@@ -31,6 +31,8 @@ void hos_destroy(Hos *os);
 int hos_applet_post_message(Hos *os,uint32_t message);
 uint32_t hos_applet_cpu_boost_mode(const Hos *os);
 void hos_applet_signal_gpu_error(Hos *os);
+/* Mount once, before guest execution; the image remains read-only for this Hos. */
+int hos_mount_romfs(Hos *os,const char *path);
 int hos_load_image(Hos *os,const char *path);
 int hos_map(Hos *os,uint64_t address,uint64_t size,uint32_t state,uint32_t permission);
 void hos_context(Hos *os,Ctx *context);

@@ -35,7 +35,20 @@ with tempfile.TemporaryDirectory() as temporary:
         *[str(p) for p in sources],'-o',str(executable)]
     if os.name!='nt':command+=['-lm','-latomic']
     subprocess.run(command,check=True)
-    subprocess.run([str(executable),str(out/'image.bin')],check=True,timeout=30)
+    from build_romfs import build as build_romfs
+    import zipfile
+    fixture=out/'assets.zip'
+    with zipfile.ZipFile(fixture,'w') as z:z.writestr('romfs/probe.txt',b'base fixture')
+    romfs=out/'base.romfs';build_romfs(fixture,romfs)
+    with romfs.open('r+b') as f:
+        if os.name=='nt':
+            import ctypes,ctypes.wintypes as w,msvcrt
+            ctl=ctypes.WinDLL('kernel32',use_last_error=True).DeviceIoControl
+            ctl.argtypes=[w.HANDLE,w.DWORD,w.LPVOID,w.DWORD,w.LPVOID,w.DWORD,ctypes.POINTER(w.DWORD),w.LPVOID]
+            ctl.restype=w.BOOL;returned=w.DWORD()
+            assert ctl(msvcrt.get_osfhandle(f.fileno()),0x900c4,None,0,None,0,ctypes.byref(returned),None),ctypes.get_last_error()
+        f.seek(0x100001000);f.write(b'TAIL');f.truncate(0x100002000)
+    subprocess.run([str(executable),str(out/'image.bin'),str(romfs)],check=True,timeout=30)
     build_cpu_probe(out,jobs=2)
     os_probe=build_os_probe(out)
     result=subprocess.run([str(os_probe),str(out/'image.bin'),'0x08000000'],check=True,capture_output=True,text=True,timeout=30)

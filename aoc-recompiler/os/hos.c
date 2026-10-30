@@ -36,7 +36,7 @@
 
 typedef struct { uint8_t state,permission,attribute; } Page;
 typedef struct { uint64_t src,dst,size; } Alias;
-typedef struct {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;uint64_t transfer_address,transfer_size;uint32_t transfer_permission,transfer_refs;int nv_index;} Session;
+typedef struct Session {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;uint64_t transfer_address,transfer_size;uint32_t transfer_permission,transfer_refs;int nv_index;struct Session *domain_owner;uint32_t domain_refs;} Session;
 typedef struct { uint32_t id;uint8_t kind; } NvFd;
 typedef struct { uint32_t refs,next_fd;int initialized,transfer_index;uint64_t aruid,firmware_margin_request;NvFd fds[64]; } NvClient;
 enum { T_FREE,T_CREATED,T_READY,T_RUNNING,T_WAIT,T_EXITED };
@@ -55,6 +55,7 @@ typedef struct {
 } GuestThread;
 struct Hos {
     Session sessions[64];
+    FILE *romfs;uint64_t romfs_size;
     NvClient nv_clients[64];
     Alias aliases[64];
     uint64_t clock_mappings[16];uint8_t clock_page[4096];int clock_ready;int64_t clock_offset;
@@ -139,6 +140,7 @@ Hos *hos_create(void) {
 void hos_destroy(Hos *os) {
     if(!os)return;
     threads_destroy(os);
+    if(os->romfs)fclose(os->romfs);
     if(os->memory) {
 #if defined(_WIN32)
         VirtualFree(os->memory,0,MEM_RELEASE);
@@ -302,7 +304,7 @@ void a64_svc(Ctx *c,uint32_t id) {
         c->x[0]=0;return;
     }
     case 22:
-        {Session *session=ipc_session(os,c->x[0]);if(session){if(session->kind==31){c->x[0]=close_transfer_memory(os,session);return;}if(session->kind==18){uint32_t result=nv_release_session(os,session);if(result){c->x[0]=result;return;}}session->handle=0;reap_guest_threads(os);c->x[0]=0;return;}}
+        {Session *session=ipc_session(os,c->x[0]);if(session){if(session->kind==31){c->x[0]=close_transfer_memory(os,session);return;}if(session->kind==18){uint32_t result=nv_release_session(os,session);if(result){c->x[0]=result;return;}}ipc_release_domain(session);session->handle=0;reap_guest_threads(os);c->x[0]=0;return;}}
         if(c->x[0]==HOS_MAIN_HANDLE && os->thread_open){os->thread_open=0;c->x[0]=0;}
         else if(c->x[0]==HOS_PROCESS_HANDLE && os->process_open){os->process_open=0;c->x[0]=0;}
         else c->x[0]=R_HANDLE;
