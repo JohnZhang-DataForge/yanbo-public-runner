@@ -52,3 +52,29 @@ Protocol references (consulted, not copied):
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/kern_k_condition_variable.cpp
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/kern_k_synchronization_object.cpp
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libvapours/include/vapours/svc/arch/arm64/svc_thread_local_region.hpp
+
+## Transfer-memory objects
+
+CreateTransferMemory (SVC 0x15) now allocates a typed kernel handle for a normal
+RW heap region with no existing attributes. The page-aligned range is locked
+and its owner permissions become None, Read, or ReadWrite as requested.
+QueryMemory retains Normal state and reports the locked attribute. Heap shrink,
+permission changes, stack mapping, and overlapping transfer objects cannot
+reuse these pages. CloseHandle restores RW ownership and clears the lock while
+preserving bytes; stale handles fail. Allocation failure does not alter pages.
+
+This profile supports creation and final local-handle close. Remote transfer
+maps, copied transfer handles and GPU service ownership are not implemented.
+Transfer handles are neither waitable events nor IPC endpoints. The private
+game now passes its 8 MiB transfer allocation and stops at the absent `nvdrv`
+service. No renderer or GPU behavior is supplied by this memory object.
+
+Synthetic native tests execute a lifted SVC wrapper and cover all three owner
+permissions, QueryMemory, overlaps, locked heap protection, restoration, stale
+handles and handle-table exhaustion.
+
+Primary contracts consulted (not copied):
+
+- https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/svc/kern_svc_transfer_memory.cpp
+- https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/kern_k_transfer_memory.cpp
+- https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/kern_k_page_table_base.cpp

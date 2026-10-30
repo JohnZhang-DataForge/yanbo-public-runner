@@ -10,6 +10,7 @@ extern void f_08000024(Ctx *A64_NOESC);
 static void set_heap(Ctx *c,uint64_t size){c->x[1]=size;a64_svc(c,1);}
 #include "ipc_test.inc"
 #include "memory_test.inc"
+#include "transfer_test.inc"
 #include "threads_test.inc"
 #include "sync_test.inc"
 int main(int argc,char **argv) {
@@ -26,6 +27,7 @@ int main(int argc,char **argv) {
     check_guest_threads(os);
     check_guest_sync(os);
     check_stack_mapping(os);
+    check_transfer_memory(os);
     check_ipc(os);
     /* Generated SVC 0x1d must clear an empty-queue flag and preserve void ABI. */
     for(int count=-1;count<=2;count++) {

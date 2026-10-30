@@ -36,7 +36,7 @@
 
 typedef struct { uint8_t state,permission,attribute; } Page;
 typedef struct { uint64_t src,dst,size; } Alias;
-typedef struct {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;} Session;
+typedef struct {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;uint64_t transfer_address,transfer_size;uint32_t transfer_permission;} Session;
 enum { T_FREE,T_CREATED,T_READY,T_RUNNING,T_WAIT,T_EXITED };
 typedef struct {
     int kind,index;
@@ -218,6 +218,7 @@ static uint64_t ticks(void) {
 }
 #include "memory.inc"
 #include "ipc.inc"
+#include "transfer.inc"
 #include "threads.inc"
 #include "sync.inc"
 
@@ -283,6 +284,7 @@ void a64_svc(Ctx *c,uint32_t id) {
         if(id==23 && !os->applet_events[event->event_index]){c->x[0]=0xfa01;return;}
         os->applet_events[event->event_index]=0;c->x[0]=0;return;
     }
+    case 21: create_transfer_memory(c);return;
     case 24: wait_guest_objects(c);return;
     case 25: {
         GuestThread *t=kernel_thread(os,c->x[0]);if(!t){c->x[0]=R_HANDLE;return;}
@@ -291,7 +293,7 @@ void a64_svc(Ctx *c,uint32_t id) {
         c->x[0]=0;return;
     }
     case 22:
-        {Session *session=ipc_session(os,c->x[0]);if(session){session->handle=0;reap_guest_threads(os);c->x[0]=0;return;}}
+        {Session *session=ipc_session(os,c->x[0]);if(session){if(session->kind==31){c->x[0]=close_transfer_memory(os,session);return;}session->handle=0;reap_guest_threads(os);c->x[0]=0;return;}}
         if(c->x[0]==HOS_MAIN_HANDLE && os->thread_open){os->thread_open=0;c->x[0]=0;}
         else if(c->x[0]==HOS_PROCESS_HANDLE && os->process_open){os->process_open=0;c->x[0]=0;}
         else c->x[0]=R_HANDLE;
