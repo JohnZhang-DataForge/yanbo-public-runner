@@ -41,7 +41,7 @@ struct Hos {
     uint32_t performance_config[2];
     uint8_t performance_configured[2];
     uint32_t applet_messages[16],applet_head,applet_count;
-    uint8_t applet_events[2],applet_self_flags[24];
+    uint8_t applet_events[3],applet_self_flags[24];
     int applet_foreground,applet_running,applet_exit_locked;
     uint8_t *memory;
     Page *pages;
@@ -139,6 +139,7 @@ static void stop(Ctx *c,int reason,const char *message) {
     os->stop=reason;snprintf(os->message,sizeof(os->message),"%s",message);
     if(active && active->os==os)longjmp(active->target,1);
 }
+void hos_applet_signal_gpu_error(Hos *os) { if(os)os->applet_events[2]=1; }
 int hos_applet_post_message(Hos *os,uint32_t message) {
     if(!os || os->applet_count==16)return 0;
     os->applet_messages[(os->applet_head+os->applet_count)%16]=message;

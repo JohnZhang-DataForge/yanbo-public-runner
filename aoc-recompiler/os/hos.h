@@ -27,6 +27,7 @@ Hos *hos_create(void);
 void hos_destroy(Hos *os);
 /* Serialized host-thread injection; this single-thread profile is not thread-safe. */
 int hos_applet_post_message(Hos *os,uint32_t message);
+void hos_applet_signal_gpu_error(Hos *os);
 int hos_load_image(Hos *os,const char *path);
 int hos_map(Hos *os,uint64_t address,uint64_t size,uint32_t state,uint32_t permission);
 void hos_context(Hos *os,Ctx *context);

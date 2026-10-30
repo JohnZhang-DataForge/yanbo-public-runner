@@ -77,6 +77,7 @@ static int applet_request(Ctx *c,Session *session,int kind,int domain,uint32_t c
             os->applet_foreground=1;ipc_response(out,token,0,0,0,0,domain,0);c->x[0]=0;return 1;
         }
     }
+    if(kind==10 && command==130)return applet_event(c,2,domain,token); /* GPU-error notification. */
     if(kind==10 && command==40) { /* IApplicationFunctions NotifyRunning */
         os->applet_running=1;ipc_response(out,token,0,1,1,0,domain,0);c->x[0]=0;return 1;
     }

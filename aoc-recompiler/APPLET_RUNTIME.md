@@ -18,7 +18,8 @@ Implemented child behavior:
   focus-handling, restart-message and out-of-focus suspension settings. It
   reports zero suspended ticks and supplies a separate suspended-tick event.
 - WindowController reports the resource user ID and records foreground rights.
-- ApplicationFunctions records NotifyRunning and reports the running state.
+- ApplicationFunctions records NotifyRunning, reports the running state and
+  supplies a separate GPU-error notification event.
 - Proxy getters create typed library-applet, audio, display and debug objects.
   Their operation methods remain unsupported and stop explicitly. A returned
   interface is not a working library-applet, audio or display backend.
@@ -29,6 +30,8 @@ The queue is bounded to 16 messages and preserves order; ReceiveMessage on an
 empty queue returns AM NoMessages (0x680). The serialized host-thread API
 `hos_applet_post_message` posts a message and signals the event. It returns zero
 when full. The current runtime and this injection API are not thread-safe.
+`hos_applet_signal_gpu_error` is a separate serialized host hook for GPU-error
+notifications; it does not implement rendering or GPU error recovery.
 
 ClearEvent and ResetSignal support these events. WaitSynchronization validates
 all handles before returning the first signaled index; zero-timeout polling

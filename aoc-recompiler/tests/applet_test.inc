@@ -58,6 +58,9 @@ static void check_applet(Hos *os,uint32_t sm) {
     assert(c.x[0]==0 && event2!=event1);
     c.x[0]=0;c.x[1]=0;c.x[2]=0;c.x[3]=0;a64_svc(&c,24);assert(c.x[0]==0xea01);
     c.x[2]=~0ULL;a64_svc(&c,24);assert(c.x[0]==0xee01);
+    apm_test_domain(functions,130,0);c.x[0]=manager;a64_svc(&c,33);
+    uint32_t gpu_event=ipc_test_word(12);assert(c.x[0]==0 && ipc_test_word(8)==2);
+    applet_test_poll(&c,gpu_event,0,0);assert(c.x[0]==0xea01);
     applet_test_poll(&c,event1,0,0);assert(c.x[0]==0xea01);
     c.x[0]=event1;a64_svc(&c,23);assert(c.x[0]==0xfa01);
     c.x[0]=event1;a64_svc(&c,33);assert(c.x[0]==0xe401); /* Kernel events are not IPC endpoints. */
@@ -66,6 +69,7 @@ static void check_applet(Hos *os,uint32_t sm) {
     assert(strstr(hos_stop_message(os),"blocking event wait"));
     assert(hos_applet_post_message(os,0x11223344) && hos_applet_post_message(os,0x55));
     applet_test_poll(&c,event1,event2,~0LL);assert(c.x[0]==0 && c.x[1]==0);
+    applet_test_poll(&c,gpu_event,event2,0);assert(c.x[0]==0 && c.x[1]==1);
     applet_test_poll(&c,event1,0xffffffff,0);assert(c.x[0]==0xe401); /* Validate every handle first. */
     c.x[0]=event1;a64_svc(&c,18);assert(c.x[0]==0);
     applet_test_poll(&c,event2,0,0);assert(c.x[0]==0xea01); /* Copies share the same event. */
@@ -82,10 +86,15 @@ static void check_applet(Hos *os,uint32_t sm) {
     for(unsigned i=0;i<16;i++){
         apm_test_domain(common,2,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(48)==i);
     }
+    hos_applet_signal_gpu_error(os);
+    applet_test_poll(&c,gpu_event,0,0);assert(c.x[0]==0 && c.x[1]==0);
+    c.x[0]=gpu_event;a64_svc(&c,23);assert(c.x[0]==0);
+    applet_test_poll(&c,gpu_event,0,0);assert(c.x[0]==0xea01);
     c.x[0]=event1;a64_svc(&c,22);assert(c.x[0]==0);
     applet_test_poll(&c,event1,0,0);assert(c.x[0]==0xe401);
     c.x[0]=manager;a64_svc(&c,22);assert(c.x[0]==0);
     applet_test_poll(&c,event2,0,0);assert(c.x[0]==0xea01); /* Independent copied-handle lifetime. */
     c.x[0]=event2;a64_svc(&c,22);assert(c.x[0]==0);
+    c.x[0]=gpu_event;a64_svc(&c,22);assert(c.x[0]==0);
     puts("Applet proxy validation, state queries, message queue, copied events and polling passed");
 }
