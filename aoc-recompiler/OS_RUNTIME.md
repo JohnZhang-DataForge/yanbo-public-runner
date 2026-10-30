@@ -63,3 +63,15 @@ Behavior reference (consulted, not imported): Atmosphere-NX/Atmosphere,
 `libraries/libmesosphere/source/kern_k_condition_variable.cpp` and
 `libraries/libmesosphere/source/svc/kern_svc_condition_variable.cpp`:
 https://github.com/Atmosphere-NX/Atmosphere/tree/master/libraries/libmesosphere/source
+
+The follow-up private test exposed an SDK abort with result 0xf001 from GetInfo
+AliasRegionAddress/Size. Those queries now report a reserved, unmapped alias
+region [0x60000000, 0x70000000), disjoint from heap and stack. This only describes
+the address-space profile; MapMemory and alias mapping remain unsupported.
+With signaling and these queries fixed, `nnosInitialize` returns normally and
+the diagnostic enters `_init_libc1`. This remains a bounded startup slice.
+
+Set `HOS_TRACE=1` to log guest SVC IDs, PCs and the first four argument registers.
+Guest Break diagnostics now include reason, buffer, size, link register and a
+readable 32-bit result when supplied. These details identified the rejected
+GetInfo query; generated-guest tests verify the diagnostic result decoding.

@@ -39,7 +39,7 @@ struct Hos {
     Page *pages;
     uint64_t heap,image_size;
     uint32_t last_svc;
-    int stop,thread_open,process_open,priority;
+    int stop,thread_open,process_open,priority,trace;
     char message[192];
 };
 typedef struct Run { jmp_buf target; struct Run *parent; Hos *os; } Run;
@@ -90,6 +90,7 @@ Hos *hos_create(void) {
     os->memory=p==MAP_FAILED?NULL:(uint8_t *)p;
 #endif
     if(os->memory!=(uint8_t *)A64_HOST_BASE){hos_destroy(os);return NULL;}
+    os->trace=getenv("HOS_TRACE") && strcmp(getenv("HOS_TRACE"),"0")!=0;
     os->priority=44;os->thread_open=os->process_open=1;os->last_svc=~0u;
     if(!hos_map(os,HOS_STACK_BASE,HOS_STACK_SIZE,11,3) || !hos_map(os,HOS_TLS_BASE,PAGE,5,3)) {
         hos_destroy(os);return NULL;
@@ -167,6 +168,9 @@ static uint64_t ticks(void) {
 }
 void a64_svc(Ctx *c,uint32_t id) {
     Hos *os=owner(c);os->last_svc=id;
+    if(os->trace)fprintf(stderr,"[HOS] SVC %#x pc=%#llx x0=%#llx x1=%#llx x2=%#llx x3=%#llx\n",id,
+        (unsigned long long)c->pc,(unsigned long long)c->x[0],(unsigned long long)c->x[1],
+        (unsigned long long)c->x[2],(unsigned long long)c->x[3]);
     switch(id) {
     case 1: { uint32_t result=resize_heap(os,c->x[1]);c->x[0]=result;if(!result)c->x[1]=HOS_HEAP_BASE;return; }
     case 2: {
@@ -225,7 +229,15 @@ void a64_svc(Ctx *c,uint32_t id) {
     case 30: c->x[0]=ticks();return;
     case 36: if(process_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;
     case 37: if(thread_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;
-    case 38: stop(c,HOS_STOP_BREAK,"guest svcBreak");return;
+    case 38: {
+        char text[192];uint32_t result=0;
+        int has_result=c->x[2]==sizeof(result) && hos_access(os,c->x[1],sizeof(result),1);
+        if(has_result)memcpy(&result,os->memory+c->x[1],sizeof(result));
+        snprintf(text,sizeof(text),"guest svcBreak reason=%#llx buffer=%#llx size=%llu lr=%#llx%s%#x",
+            (unsigned long long)c->x[0],(unsigned long long)c->x[1],(unsigned long long)c->x[2],
+            (unsigned long long)c->x[30],has_result?" result=":" unread-result=",result);
+        stop(c,HOS_STOP_BREAK,text);return;
+    }
     case 39: {
         uint64_t a=c->x[0],n=c->x[1];
         if(n>4096 || !hos_access(os,a,n,1)){c->x[0]=R_MEMORY;return;}
@@ -237,6 +249,7 @@ void a64_svc(Ctx *c,uint32_t id) {
         if(c->x[3]){c->x[0]=R_ENUM;return;}
         switch(type) {
         case 0:value=1;break;case 1:value=~0ULL;break;
+        case 2:value=HOS_ALIAS_BASE;break;case 3:value=HOS_ALIAS_SIZE;break;
         case 4:value=HOS_HEAP_BASE;break;case 5:value=HOS_HEAP_LIMIT;break;
         case 6:case 21:value=HOS_HEAP_LIMIT+HOS_STACK_SIZE+os->image_size+PAGE;break;
         case 7:case 22:value=os->heap+HOS_STACK_SIZE+os->image_size+PAGE;break;

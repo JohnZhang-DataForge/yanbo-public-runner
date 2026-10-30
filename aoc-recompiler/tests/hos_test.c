@@ -6,6 +6,7 @@
 extern void f_08000000(Ctx *A64_NOESC);
 extern void f_08000010(Ctx *A64_NOESC);
 extern void f_0800001c(Ctx *A64_NOESC);
+extern void f_08000024(Ctx *A64_NOESC);
 static void set_heap(Ctx *c,uint64_t size){c->x[1]=size;a64_svc(c,1);}
 int main(int argc,char **argv) {
     assert(argc==2);
@@ -45,12 +46,21 @@ int main(int argc,char **argv) {
     set_heap(&c,0x200000);assert(c.x[0]==0 && *(uint32_t *)A64_PTR(HOS_HEAP_BASE)==0);
     c.x[1]=4;c.x[2]=HOS_CURRENT_PROCESS;c.x[3]=0;a64_svc(&c,41);
     assert(c.x[0]==0 && c.x[1]==HOS_HEAP_BASE);
+    assert(HOS_HEAP_BASE+HOS_HEAP_LIMIT<=HOS_ALIAS_BASE && HOS_ALIAS_BASE+HOS_ALIAS_SIZE<=HOS_STACK_BASE);
+    c.x[1]=2;c.x[2]=HOS_CURRENT_PROCESS;c.x[3]=0;a64_svc(&c,41);
+    assert(c.x[0]==0 && c.x[1]==HOS_ALIAS_BASE);
+    c.x[1]=3;c.x[2]=HOS_CURRENT_PROCESS;a64_svc(&c,41);
+    assert(c.x[0]==0 && c.x[1]==HOS_ALIAS_SIZE);
     c.x[1]=4;c.x[2]=123;c.x[3]=0;a64_svc(&c,41);assert(c.x[0]==0xe401);
     c.x[1]=HOS_MAIN_HANDLE;a64_svc(&c,37);assert(c.x[0]==0 && c.x[1]==1);
     c.x[0]=HOS_MAIN_HANDLE;a64_svc(&c,22);assert(c.x[0]==0);
     c.x[1]=HOS_MAIN_HANDLE;a64_svc(&c,37);assert(c.x[0]==0xe401);
     c.x[1]=HOS_CURRENT_THREAD;a64_svc(&c,37);assert(c.x[0]==0);
     a64_svc(&c,30);uint64_t first=c.x[0];a64_svc(&c,30);assert(c.x[0]>=first);
+    hos_context(os,&c);c.x[0]=0;c.x[1]=HOS_TLS_BASE;c.x[2]=4;
+    *(uint32_t *)A64_PTR(HOS_TLS_BASE)=0xf001;
+    assert(hos_run(os,&c,f_08000024)==HOS_STOP_BREAK);
+    assert(strstr(hos_stop_message(os),"result=0xf001") && strstr(hos_stop_message(os),"reason=0"));
     hos_context(os,&c);c.x[0]=0x1234;
     assert(hos_run(os,&c,f_08000010)==HOS_STOP_UNIMPLEMENTED);
     assert(c.x[0]==0x1234 && c.halted && hos_last_svc(os)==0xff && c.pc==0x08000010);
