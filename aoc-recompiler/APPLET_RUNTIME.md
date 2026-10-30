@@ -76,3 +76,13 @@ cancellable waits; see [KERNEL_BOOTSTRAP.md](KERNEL_BOOTSTRAP.md). The first
 application proxy now queues a one-time FocusStateChanged notification (15).
 ReceiveMessage is correctly dispatched on command 1; earlier command-2 wiring
 was a protocol error. Queue tests use the command ID from the service protocol.
+
+CommonStateGetter SetCpuBoostMode (66) accepts the documented application modes
+Normal (0) and FastLoad (1), retains the process-wide guest request, and rejects
+other values without changing it. CancelCpuBoostMode (67) restores Normal.
+This logical performance hint does not alter host clock rates or imply a GPU
+backend. Native tests cover selection, cancellation, invalid modes and truncated
+requests. The private game passed this request after reaching `nnMain`.
+
+ABI reference (consulted, not copied):
+https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/apm.h

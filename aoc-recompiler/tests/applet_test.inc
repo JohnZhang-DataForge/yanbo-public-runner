@@ -45,6 +45,15 @@ static void check_applet(Hos *os,uint32_t sm) {
         apm_test_domain(common,commands[i],0);c.x[0]=manager;a64_svc(&c,33);
         assert(c.x[0]==0 && ipc_test_word(40)==0 && ipc_test_word(48)==expected[i]);
     }
+    assert(hos_applet_cpu_boost_mode(os)==0);
+    apm_test_domain(common,66,4);ipc_test_put(48,1);c.x[0]=manager;a64_svc(&c,33);
+    assert(c.x[0]==0 && ipc_test_word(40)==0 && hos_applet_cpu_boost_mode(os)==1);
+    apm_test_domain(common,66,4);ipc_test_put(48,2);c.x[0]=manager;a64_svc(&c,33);
+    assert(c.x[0]==0 && ipc_test_word(40)==0xf001 && hos_applet_cpu_boost_mode(os)==1);
+    apm_test_domain(common,66,0);c.x[0]=manager;a64_svc(&c,33);
+    assert(c.x[0]==0x1c01 && hos_applet_cpu_boost_mode(os)==1);
+    apm_test_domain(common,67,0);c.x[0]=manager;a64_svc(&c,33);
+    assert(c.x[0]==0 && ipc_test_word(40)==0 && hos_applet_cpu_boost_mode(os)==0);
     apm_test_domain(window,1,0);c.x[0]=manager;a64_svc(&c,33);
     assert(c.x[0]==0 && ipc_test_word(48)==1 && ipc_test_word(52)==0); /* Full u64 response. */
     apm_test_domain(window,10,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0);
