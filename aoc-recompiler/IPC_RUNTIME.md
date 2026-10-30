@@ -44,3 +44,16 @@ Behavior references (consulted, not copied):
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libstratosphere/source/lm/sf/lm_i_log_service.hpp
 
 This is still a partial runtime, not a successful retail game boot.
+
+## Verified startup result
+
+Windows source/synthetic tests and packaging passed:
+https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/40986741877
+
+A private 871-function startup slice completes OS/libc initialization, connects
+to and registers with `sm:`, obtains `lm`, queries its pointer-buffer size,
+converts it to a domain and opens a logger. The next explicit stop is SM
+GetService `apm` (power management), at SVC 0x21 / guest PC 0x0b2fca50.
+The IPC transport and logging barriers are passed. `apm` and other remaining
+service backends are not implemented by this change. This bounded test does
+not establish full-game execution correctness, boot or gameplay.
