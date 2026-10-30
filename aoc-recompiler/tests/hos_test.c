@@ -53,6 +53,14 @@ int main(int argc,char **argv) {
     assert(c.x[0]==0 && c.x[1]==HOS_ALIAS_BASE);
     c.x[1]=3;c.x[2]=HOS_CURRENT_PROCESS;a64_svc(&c,41);
     assert(c.x[0]==0 && c.x[1]==HOS_ALIAS_SIZE);
+    assert(HOS_STACK_BASE>=HOS_STACK_REGION_BASE && HOS_STACK_BASE+HOS_STACK_SIZE<HOS_STACK_REGION_BASE+HOS_STACK_REGION_SIZE);
+    c.x[1]=14;c.x[2]=HOS_CURRENT_PROCESS;a64_svc(&c,41);
+    assert(c.x[0]==0 && c.x[1]==HOS_STACK_REGION_BASE);
+    c.x[1]=15;c.x[2]=HOS_CURRENT_PROCESS;a64_svc(&c,41);
+    assert(c.x[0]==0 && c.x[1]==HOS_STACK_REGION_SIZE);
+    c.x[0]=HOS_TLS_BASE;c.x[2]=HOS_STACK_BASE+HOS_STACK_SIZE;a64_svc(&c,6);assert(c.x[0]==0);
+    memcpy(&state,A64_PTR(HOS_TLS_BASE+16),4);memcpy(&perm,A64_PTR(HOS_TLS_BASE+24),4);
+    assert(state==0 && perm==0 && !hos_access(os,HOS_STACK_BASE+HOS_STACK_SIZE,4096,1));
     c.x[1]=4;c.x[2]=123;c.x[3]=0;a64_svc(&c,41);assert(c.x[0]==0xe401);
     c.x[1]=HOS_MAIN_HANDLE;a64_svc(&c,37);assert(c.x[0]==0 && c.x[1]==1);
     c.x[0]=HOS_MAIN_HANDLE;a64_svc(&c,22);assert(c.x[0]==0);

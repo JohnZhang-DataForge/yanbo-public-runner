@@ -53,3 +53,19 @@ Protocol references (consulted, not copied):
 - https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/applet.h
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/svc/kern_svc_synchronization.cpp
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/kern_k_readable_event.cpp
+
+## Private startup checkpoint
+
+A private 2104-function base-game diagnostic opens its application proxy,
+acquires startup child interfaces and obtains suspended-tick and GPU-error
+events. It then needed a correction to GetInfo's StackRegion: the reserved
+virtual stack region is [0x70000000, 0x80000000), while the committed main stack
+occupies only its first 8 MiB. Reporting the committed stack as the entire region
+caused the SDK's free-address search to exhaust the region and abort. Native
+tests now verify the reported region contains unmapped space outside the main
+stack. Reserved space is not prematurely committed.
+
+With that correction, the diagnostic reaches an explicit unsupported MapMemory
+(SVC 0x4) at guest PC 0x0b2fc900. Mapping stack aliases is a separate remaining
+kernel feature. This bounded test does not establish full-game execution,
+boot or graphics output.

@@ -295,7 +295,7 @@ void a64_svc(Ctx *c,uint32_t id) {
         case 7:case 22:value=os->heap+HOS_STACK_SIZE+os->image_size+PAGE;break;
         case 8:value=0;break;
         case 12:value=HOS_IMAGE_BASE;break;case 13:value=SPACE-HOS_IMAGE_BASE;break;
-        case 14:value=HOS_STACK_BASE;break;case 15:value=HOS_STACK_SIZE;break;
+        case 14:value=HOS_STACK_REGION_BASE;break;case 15:value=HOS_STACK_REGION_SIZE;break;
         case 23:value=1;break;
         default:c->x[0]=R_ENUM;return;
         }
