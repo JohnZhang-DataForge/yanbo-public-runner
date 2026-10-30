@@ -26,7 +26,7 @@ Twenty unit tests and synthetic guest tests cover symbol validation, explicit
 entry execution, startup sequencing and stopping before nnMain on an early failure.
 No successful game boot or gameplay is claimed.
 
-Thread creation/scheduling, synchronization, IPC and service sessions, filesystem,
+Thread creation/scheduling, blocking synchronization, most service backends, filesystem,
 GPU, audio, and input remain unimplemented. Image pages currently use a coarse
 read/write mapping instead of per-segment permissions. The heap uses a bounded
 1 GiB diagnostic profile. Firmware and production keys are not loaded or needed
@@ -83,3 +83,7 @@ The earlier signaling and alias-query barriers are passed. Service sessions/IPC
 are the next runtime requirement; no synthetic success is returned for them.
 Windows verification for the code changes:
 https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/40985474883
+
+IPC transport, service-manager registration, domain objects and a logging backend
+are now implemented; see [IPC_RUNTIME.md](IPC_RUNTIME.md). Earlier startup stops
+in this document describe prior diagnostic stages, not current feature coverage.

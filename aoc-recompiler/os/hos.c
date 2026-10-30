@@ -34,7 +34,10 @@
 #endif
 
 typedef struct { uint8_t state,permission; } Page;
+typedef struct {uint32_t handle;int initialized,kind,domain;uint32_t next_object;uint8_t objects[16];} Session;
 struct Hos {
+    Session sessions[64];
+    uint32_t next_session,log_destination;
     uint8_t *memory;
     Page *pages;
     uint64_t heap,image_size;
@@ -91,6 +94,7 @@ Hos *hos_create(void) {
 #endif
     if(os->memory!=(uint8_t *)A64_HOST_BASE){hos_destroy(os);return NULL;}
     os->trace=getenv("HOS_TRACE") && strcmp(getenv("HOS_TRACE"),"0")!=0;
+    os->next_session=0x20000;os->log_destination=1;
     os->priority=44;os->thread_open=os->process_open=1;os->last_svc=~0u;
     if(!hos_map(os,HOS_STACK_BASE,HOS_STACK_SIZE,11,3) || !hos_map(os,HOS_TLS_BASE,PAGE,5,3)) {
         hos_destroy(os);return NULL;
@@ -166,6 +170,8 @@ static uint64_t ticks(void) {
     return (uint64_t)now.tv_sec*19200000ULL+(uint64_t)now.tv_nsec*19200000ULL/1000000000ULL;
 #endif
 }
+#include "ipc.inc"
+
 void a64_svc(Ctx *c,uint32_t id) {
     Hos *os=owner(c);os->last_svc=id;
     if(os->trace)fprintf(stderr,"[HOS] SVC %#x pc=%#llx x0=%#llx x1=%#llx x2=%#llx x3=%#llx\n",id,
@@ -209,6 +215,7 @@ void a64_svc(Ctx *c,uint32_t id) {
     case 13: if(!thread_handle(os,c->x[0]))c->x[0]=R_HANDLE;else if(c->x[1]>63)c->x[0]=R_ENUM;else{os->priority=(int)c->x[1];c->x[0]=0;}return;
     case 16: c->x[0]=0;return; /* Single main-thread profile, core 0. */
     case 22:
+        {Session *session=ipc_session(os,c->x[0]);if(session){session->handle=0;c->x[0]=0;return;}}
         if(c->x[0]==HOS_MAIN_HANDLE && os->thread_open){os->thread_open=0;c->x[0]=0;}
         else if(c->x[0]==HOS_PROCESS_HANDLE && os->process_open){os->process_open=0;c->x[0]=0;}
         else c->x[0]=R_HANDLE;
@@ -227,6 +234,8 @@ void a64_svc(Ctx *c,uint32_t id) {
         return;
     }
     case 30: c->x[0]=ticks();return;
+    case 31: ipc_connect(c);return;
+    case 33: ipc_send(c);return;
     case 36: if(process_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;
     case 37: if(thread_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;
     case 38: {

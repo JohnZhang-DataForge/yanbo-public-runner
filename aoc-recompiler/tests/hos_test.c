@@ -8,6 +8,7 @@ extern void f_08000010(Ctx *A64_NOESC);
 extern void f_0800001c(Ctx *A64_NOESC);
 extern void f_08000024(Ctx *A64_NOESC);
 static void set_heap(Ctx *c,uint64_t size){c->x[1]=size;a64_svc(c,1);}
+#include "ipc_test.inc"
 int main(int argc,char **argv) {
     assert(argc==2);
     Hos *os=hos_create();assert(os);
@@ -19,6 +20,7 @@ int main(int argc,char **argv) {
     assert(hos_run(os,&c,f_08000000)==HOS_STOP_THREAD_EXIT);
     assert(c.x[0]==0 && hos_heap_size(os)==0x200000 && c.pc==0x08000004);
     assert(hos_access(os,HOS_HEAP_BASE,0x200000,3));
+    check_ipc(os);
     /* Generated SVC 0x1d must clear an empty-queue flag and preserve void ABI. */
     for(int count=-1;count<=2;count++) {
         *(uint32_t *)A64_PTR(HOS_HEAP_BASE)=1;
