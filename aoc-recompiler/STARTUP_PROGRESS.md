@@ -9,7 +9,7 @@ The current private run completes all six exported SDK stages:
 `_init_libc0`, `nnosInitialize`, `_init_libc1`,
 `nninitInitializeSdkModule`, `nninitStartup`, and `_init_libc2`.
 It allocates a 1 GiB guest heap, completes all three module constructors
-(`main`, `subsdk0`, `sdk`), and enters `nnMain`. The private diagnostic also
+(`main`, `subsdk0`, `sdk`), and enters `nnMain`. The 6,809-function private diagnostic also
 passes the application's CPU boost request and creates an 8 MiB transfer-memory
 object. The next explicit stop is `SM GetService 'nvdrv': service backend is not
 implemented`. This is not a rendered boot screen or proof of asset loading or
@@ -39,7 +39,7 @@ The dedicated output directory has an ownership marker. Re-running preserves
 cached objects but removes stale generated translation units. The log is saved
 as `startup-run.log`; its exit status is propagated by the tool.
 
-Public Windows verification for the client-handle lifetime fix passed native
+Public Windows verification for the transfer-memory and CPU-boost checkpoint passed native
 CPU/OS tests and packaged tools:
-https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/41056538109
+https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/41058357603
 These are synthetic tests, not a public run of the game.

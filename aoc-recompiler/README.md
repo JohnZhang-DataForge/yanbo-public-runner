@@ -1,7 +1,7 @@
 # Age of Calamity recompiler research
 
 Status: **CPU translation prototype, not a playable Windows port.** The NSO loader has been validated against the supplied base-game ExeFS.
-Experimental native execution reaches SDK startup and module constructors.
+Experimental native execution reaches `nnMain` and stops at the missing `nvdrv` GPU backend.
 A rendered boot screen and playability have not been established. See
 `STARTUP_PROGRESS.md` for the current private diagnostic and reproducible probe.
 
@@ -36,14 +36,14 @@ translator is separate from translating and linking a complete game.
 
 ## Remaining port work
 
-1. Identify the exact game version/build ID and examine a user-supplied,
-   decrypted executable dump. NSO segment loading/decompression is implemented;
-   NSP/XCI loading is absent.
-2. Discover functions, relocations, control flow, jump tables, and indirect calls.
-3. Implement remaining ARM64 instructions, flags, SIMD, guest memory, and ABI.
-4. Implement Switch service calls, threading, filesystems, timing, and input.
-5. Implement the graphics/shader/audio runtime and connect the game assets.
-6. Validate against the selected executable build; add regression coverage.
+1. Validate remaining ARM64 instruction, flag and SIMD behavior against an
+   independent implementation and the selected executable build.
+2. Complete the kernel/service operations the game actually uses, including
+   filesystem access and remote memory ownership.
+3. Implement the GPU driver, command processor, shader translation and renderer.
+4. Connect assets, input and audio to the host runtime.
+5. Validate private Windows game execution and a rendered boot frame before
+   making any boot/playability claim.
 
 The sections below describe the original translator and its individual tools.
 Current kernel and service behavior is documented in `KERNEL_BOOTSTRAP.md`,
