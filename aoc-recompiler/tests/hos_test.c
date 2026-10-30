@@ -2,6 +2,7 @@
 #include "hos.h"
 #include <assert.h>
 #include <stdio.h>
+#include <time.h>
 #include <string.h>
 extern void f_08000000(Ctx *A64_NOESC);
 extern void f_08000010(Ctx *A64_NOESC);

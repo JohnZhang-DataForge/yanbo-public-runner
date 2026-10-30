@@ -57,6 +57,7 @@ struct Hos {
     Session sessions[64];
     NvClient nv_clients[64];
     Alias aliases[64];
+    uint64_t clock_mappings[16];uint8_t clock_page[4096];int clock_ready;int64_t clock_offset;
     GuestThread threads[64];int current_thread,main_fiber_owned,background_fault;
     uint64_t next_thread_id,background_pc,next_wait_order;char background_message[192];
     uint32_t next_session,log_destination;
@@ -75,6 +76,7 @@ struct Hos {
 typedef struct Run { jmp_buf target; struct Run *parent; Hos *os;int reason;char message[192]; } Run;
 static void threads_destroy(Hos *os);
 static uint32_t transfer_release(Hos *os,Session *object);
+static uint64_t ticks(void);
 static void cancel_thread_wait(Hos *os,GuestThread *thread);
 static HOST_TLS Run *active;
 static Hos *owner(Ctx *c) { return (Hos *)c->thread; }
@@ -220,6 +222,7 @@ static uint64_t ticks(void) {
     return (uint64_t)now.tv_sec*19200000ULL+(uint64_t)now.tv_nsec*19200000ULL/1000000000ULL;
 #endif
 }
+uint64_t a64_cntpct_host(void) { return ticks(); } /* Same clock as SVC GetSystemTick. */
 #include "memory.inc"
 #include "ipc.inc"
 #include "transfer.inc"
@@ -288,6 +291,8 @@ void a64_svc(Ctx *c,uint32_t id) {
         if(id==23 && !os->applet_events[event->event_index]){c->x[0]=0xfa01;return;}
         os->applet_events[event->event_index]=0;c->x[0]=0;return;
     }
+    case 19: c->x[0]=time_map_shared(c,0);return;
+    case 20: c->x[0]=time_map_shared(c,1);return;
     case 21: create_transfer_memory(c);return;
     case 24: wait_guest_objects(c);return;
     case 25: {

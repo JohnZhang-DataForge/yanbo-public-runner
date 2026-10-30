@@ -17,6 +17,7 @@ static void ipc_test_request(uint32_t type,uint32_t cmd,int pid) {
 #include "nvdrv_test.inc"
 #include "apm_test.inc"
 #include "applet_test.inc"
+#include "time_test.inc"
 #include "startup_services_test.inc"
 static void check_ipc(Hos *os) {
     Ctx c;hos_context(os,&c);uint64_t name=HOS_HEAP_BASE+256;
@@ -37,6 +38,7 @@ static void check_ipc(Hos *os) {
     assert(hos_run(os,&c,f_08000034)==HOS_STOP_UNIMPLEMENTED);
     assert(strstr(hos_stop_message(os),"fsp-srv") && strstr(hos_stop_message(os),"service backend"));
     check_nvdrv(os,handle);
+    check_time_service(os,handle);
     check_apm(os,handle);
     check_applet(os,handle);
     check_startup_services(os,handle);

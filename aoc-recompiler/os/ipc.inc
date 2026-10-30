@@ -61,10 +61,11 @@ static void ipc_response(uint8_t *message,uint32_t token,uint32_t result,uint32_
 #include "addon.inc"
 #include "policy.inc"
 #include "nvdrv.inc"
+#include "time.inc"
 
 static void ipc_send(Ctx *c) {
     Hos *os=owner(c);Session *session=ipc_session(os,c->x[0]);
-    if(!session || session->kind>=20){c->x[0]=R_HANDLE;return;}
+    if(!session || (session->kind==20 || session->kind>=30)){c->x[0]=R_HANDLE;return;}
     if(session->closed){c->x[0]=0xf601;return;} /* Peer closed; client handle still needs CloseHandle. */
     uint64_t address=c->tpidrro_el0;
     if(!hos_access(os,address,128,3)){c->x[0]=R_MEMORY;return;}
@@ -147,6 +148,8 @@ static void ipc_send(Ctx *c) {
     }
     if((type==4 || type==6) && kind==18 &&
         nv_request(c,session,command,token,request+start+16,end-start-16,special&1,copies,handles,buffer,length,nx+na))return;
+    if((type==4 || type==6) && (kind==19 || (kind>=21 && kind<=25)) &&
+        time_request(c,session,kind,domain,command,token,request+start+16,end-start-16))return;
     if((type==4 || type==6) && (kind==16 || kind==17) && policy_request(c,session,kind,domain,command,token,end-start-16,special&1))return;
     if((type==4 || type==6) && kind==15 && addon_request(c,domain,command,token,end-start-16,special&1))return;
     if((type==4 || type==6) && kind>=5 && kind<=10 &&
@@ -207,7 +210,8 @@ static void ipc_send(Ctx *c) {
         }
         if(command==1 && session->initialized && end-start-16>=8) {
             char name[9];memcpy(name,request+start+16,8);name[8]=0;
-            int service_kind=(!memcmp(name,"nvdrv\0\0\0",8) || !memcmp(name,"nvdrv:a\0",8) ||
+            int service_kind=!memcmp(name,"time:u\0\0",8)?19:
+                             (!memcmp(name,"nvdrv\0\0\0",8) || !memcmp(name,"nvdrv:a\0",8) ||
                               !memcmp(name,"nvdrv:s\0",8) || !memcmp(name,"nvdrv:t\0",8))?18:
                              !memcmp(name,"lm\0\0\0\0\0\0",8)?1:
                              !memcmp(name,"apm\0\0\0\0\0",8)?3:
