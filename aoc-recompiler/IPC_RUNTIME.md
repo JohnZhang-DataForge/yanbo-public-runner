@@ -91,3 +91,7 @@ startup checkpoints, not the current service registry.
 
 The current base-game service additions (`aoc:u` and `pctl` family) are described
 in [STARTUP_SERVICES.md](STARTUP_SERVICES.md).
+
+HIPC peer-close now marks the session closed while preserving its client kernel
+handle until CloseHandle. Later sends report SessionClosed; cleanup succeeds,
+and only then is the handle stale. Native tests cover this distinction.

@@ -50,6 +50,7 @@ static void ipc_response(uint8_t *message,uint32_t token,uint32_t result,uint32_
 static void ipc_send(Ctx *c) {
     Hos *os=owner(c);Session *session=ipc_session(os,c->x[0]);
     if(!session || session->kind>=20){c->x[0]=R_HANDLE;return;}
+    if(session->closed){c->x[0]=0xf601;return;} /* Peer closed; client handle still needs CloseHandle. */
     uint64_t address=c->tpidrro_el0;
     if(!hos_access(os,address,128,3)){c->x[0]=R_MEMORY;return;}
     uint8_t request[128];memcpy(request,os->memory+address,sizeof(request));
@@ -73,7 +74,7 @@ static void ipc_send(Ctx *c) {
     if(words>(128-raw)/4){c->x[0]=R_SIZE;return;}
     uint32_t end=raw+words*4,start=(raw+15)&~15u;
     if(type==2 && !words && !special) {
-        session->handle=0;memset(os->memory+address,0,128);c->x[0]=0;return;
+        session->closed=1;memset(os->memory+address,0,128);c->x[0]=0;return;
     }
     if(type!=4 && type!=6 && type!=5 && type!=7) {
         stop(c,HOS_STOP_UNIMPLEMENTED,"IPC message type is not implemented");return;
@@ -82,7 +83,7 @@ static void ipc_send(Ctx *c) {
     if(domain) {
         if(start+16>end){c->x[0]=0x1c01;return;}
         uint32_t dh=ipc_read32(request+start),object=ipc_read32(request+start+4),size=dh>>16;
-        if(!object || object>15 || !session->objects[object]){c->x[0]=R_HANDLE;return;}
+        if(!object || object>15 || !session->objects[object]){if(os->trace)fprintf(stderr,"[HOS] invalid domain object %#x header %#x session %#x next=%u\n",object,dh,session->handle,session->next_object);c->x[0]=R_HANDLE;return;}
         if((dh&0xff)==2 && !(dh&0xff00)) {
             session->objects[object]=0;memset(os->memory+address,0,128);c->x[0]=0;return;
         }

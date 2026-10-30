@@ -36,7 +36,7 @@
 
 typedef struct { uint8_t state,permission,attribute; } Page;
 typedef struct { uint64_t src,dst,size; } Alias;
-typedef struct {uint32_t handle;int initialized,kind,domain;uint32_t next_object;uint8_t objects[16];int event_index;} Session;
+typedef struct {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;} Session;
 enum { T_FREE,T_CREATED,T_READY,T_RUNNING,T_WAIT,T_EXITED };
 typedef struct {
     int kind,index;

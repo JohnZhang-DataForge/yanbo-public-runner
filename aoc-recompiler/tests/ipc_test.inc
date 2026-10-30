@@ -84,6 +84,8 @@ static void check_ipc(Hos *os) {
     /* Reuse storage, never stale public handle values. */
     c.x[1]=name;a64_svc(&c,31);uint32_t second=(uint32_t)c.x[1];assert(c.x[0]==0 && second!=handle);
     memset(A64_PTR(HOS_TLS_BASE),0,128);ipc_test_put(0,2);c.x[0]=second;a64_svc(&c,33);assert(c.x[0]==0);
+    c.x[0]=second;a64_svc(&c,33);assert(c.x[0]==0xf601);
+    c.x[0]=second;a64_svc(&c,22);assert(c.x[0]==0);
     c.x[0]=second;a64_svc(&c,33);assert(c.x[0]==0xe401);
     memcpy(A64_PTR(name),"absent",7);c.x[1]=name;a64_svc(&c,31);assert(c.x[0]==0xf201);
     c.x[1]=0;a64_svc(&c,31);assert(c.x[0]==0xd401);
