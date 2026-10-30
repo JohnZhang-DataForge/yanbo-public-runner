@@ -37,6 +37,9 @@ static int fs_request(Ctx *c,Session *session,int kind,int domain,uint32_t comma
             if(!pid || size<8 || buffers){c->x[0]=0x1c01;return 1;}
             state->initialized=1;ipc_response(out,token,0,0,0,0,domain,0);c->x[0]=0;return 1;
         }
+        if(command==1005) { /* GetGlobalAccessLogMode: disabled in this read-only profile. */
+            ipc_response(out,token,state->initialized?0:0xfa01,4,0,0,domain,0);c->x[0]=0;return 1;
+        }
         if(command==200) { /* OpenDataStorageByCurrentProcess */
             if(!state->initialized){ipc_response(out,token,0xfa01,0,0,0,domain,0);c->x[0]=0;return 1;}
             if(!os->romfs){stop(c,HOS_STOP_UNIMPLEMENTED,"FSP RomFS storage is not mounted; set HOS_ROMFS_PATH to a raw RomFS image");return 1;}

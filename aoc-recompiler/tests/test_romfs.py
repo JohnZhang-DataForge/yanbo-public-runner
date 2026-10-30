@@ -31,7 +31,8 @@ class RomfsTests(unittest.TestCase):
    with self.subTest(names=names),tempfile.TemporaryDirectory() as t:
     a,o=Path(t)/'a.zip',Path(t)/'out'
     with zipfile.ZipFile(a,'w') as z:
-     for n in names:z.writestr(n,b'x')
+     for n in names:
+      info=zipfile.ZipInfo();info.filename=n;z.writestr(info,b'x')
     with self.assertRaises(ValueError):build(a,o)
     self.assertFalse(o.exists())
  def test_existing_part_preserved(self):

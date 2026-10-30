@@ -35,8 +35,9 @@ def build(archive, output, prefix='romfs'):
     with zipfile.ZipFile(archive) as z:
         files={};dirs={''};seen=set()
         for info in z.infolist():
-            if not info.filename.startswith(prefix):continue
-            path=info.filename[len(prefix):].rstrip('/')
+            raw=info.orig_filename
+            if not raw.startswith(prefix):continue
+            path=raw[len(prefix):].rstrip('/')
             if not path:continue
             parts=path.split('/')
             if any(p in ('','.','..') or '\\' in p or '\0' in p or len(p.encode('utf-8'))>255 for p in parts):

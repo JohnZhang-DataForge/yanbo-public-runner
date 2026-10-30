@@ -13,12 +13,13 @@ static void fs_test_read(Ctx *c,uint32_t session,uint32_t object,uint64_t offset
 static void check_fs(Hos *os,uint32_t sm) {
     Ctx c;hos_context(os,&c);uint32_t manager=nv_test_service(&c,sm,"fsp-srv");
     ipc_test_request(5,0,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(32)==1);
+    uint32_t a=fs_test_clone(&c,manager),b=fs_test_clone(&c,manager);assert(a!=b && a!=manager);
     apm_test_domain(1,200,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(40)==0xfa01);
     apm_test_domain(1,1,8);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0x1c01);
     memset(A64_PTR(HOS_TLS_BASE),0,128);ipc_test_put(0,6);ipc_test_put(4,0x80000011u);ipc_test_put(8,1);
     ipc_test_put(32,1u|(24u<<16));ipc_test_put(36,1);ipc_test_put(48,0x49434653);ipc_test_put(56,1);
-    c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(40)==0);
-    uint32_t a=fs_test_clone(&c,manager),b=fs_test_clone(&c,manager);assert(a!=b && a!=manager);
+    c.x[0]=a;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(40)==0);
+    apm_test_domain(1,1005,0);c.x[0]=b;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(40)==0 && ipc_test_word(48)==0);
     c.x[0]=manager;a64_svc(&c,22);assert(c.x[0]==0);
     uint32_t storage=applet_test_child(&c,a,1,200);assert(storage==2);
     apm_test_domain(storage,4,0);c.x[0]=b;a64_svc(&c,33);
