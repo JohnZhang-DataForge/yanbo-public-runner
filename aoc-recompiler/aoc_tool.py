@@ -7,6 +7,7 @@ import zipfile
 from analyze_exefs import analyze
 from extract_block import extract
 from recompile import translate
+from build_romfs import build as build_romfs
 
 
 def inspect_assets(path, verify=False):
@@ -41,6 +42,10 @@ def main():
     assets = commands.add_parser('inspect-assets')
     assets.add_argument('input', type=Path)
     assets.add_argument('--verify-crc', action='store_true', help='Read every file; may take several minutes')
+    romfs = commands.add_parser('build-romfs')
+    romfs.add_argument('input', type=Path)
+    romfs.add_argument('output', type=Path)
+    romfs.add_argument('--prefix', default='romfs')
     block = commands.add_parser('translate-nso')
     block.add_argument('input', type=Path)
     block.add_argument('output', type=Path)
@@ -50,6 +55,8 @@ def main():
     try:
         if args.command == 'inspect-exefs':
             print(json.dumps(analyze(args.input), indent=2))
+        elif args.command == 'build-romfs':
+            print(json.dumps(build_romfs(args.input, args.output, args.prefix), indent=2))
         elif args.command == 'inspect-assets':
             print(json.dumps(inspect_assets(args.input, args.verify_crc), indent=2))
         else:
@@ -61,3 +68,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

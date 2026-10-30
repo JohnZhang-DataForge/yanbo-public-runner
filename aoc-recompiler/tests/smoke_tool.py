@@ -19,7 +19,11 @@ with tempfile.TemporaryDirectory() as directory:
         z.writestr('dlcfs/1/test.bin',b'def')
     report=json.loads(subprocess.check_output([str(exe),'inspect-assets',str(path),'--verify-crc'],text=True))
     assert report['crc_verified'] and report['uncompressed_bytes']==6
-    nso=root/'main'
+    report=json.loads(subprocess.check_output([str(exe),'build-romfs',str(path),str(root/'base.romfs')],text=True))
+    assert report['files']==1
+    data=(root/'base.romfs').read_bytes();header=struct.unpack_from('<10Q',data)
+    assert header[0]==80 and data[header[9]:]==b'abc'
+    nso=root/'main' 
     nso.write_bytes(fixture())
     path=root/'exefs.zip'
     with zipfile.ZipFile(path,'w') as z:z.write(nso,'exefs/main')
@@ -41,3 +45,4 @@ with tempfile.TemporaryDirectory() as directory:
     subprocess.run(['cl','/nologo','/std:c++17','/EHsc','test.cpp','/Fe:test.exe'],cwd=root,check=True)
     subprocess.run([str(root/'test.exe')],check=True)
 print('Packaged unified tool smoke test passed')
+
