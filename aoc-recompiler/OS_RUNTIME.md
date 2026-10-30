@@ -31,3 +31,16 @@ GPU, audio, and input remain unimplemented. Image pages currently use a coarse
 read/write mapping instead of per-segment permissions. The heap uses a bounded
 1 GiB diagnostic profile. Firmware and production keys are not loaded or needed
 for these tests. Do not commit keys, firmware, game images, or generated game code.
+
+## Private base-game startup check
+
+A bounded 348-function diagnostic slice compiled and ran locally with the exact
+base-game image. It returned from `_init_libc0`, entered `nnosInitialize`, and
+executed QueryMemory, GetInfo and GetThreadId service paths. It then stopped at
+unsupported SVC 0x1d at guest PC 0x0b2fca30. This identifies a synchronization
+service barrier. The slice is a startup experiment, not a new full-game build;
+indirect targets were added explicitly as diagnostics exposed them. It does not
+establish that later startup stages work. Game-derived output stays private.
+
+Windows source/synthetic CI passed:
+https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/40984726004
