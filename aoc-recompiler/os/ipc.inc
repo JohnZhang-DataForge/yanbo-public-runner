@@ -47,7 +47,7 @@ static void ipc_response(uint8_t *message,uint32_t token,uint32_t result,uint32_
 
 static void ipc_send(Ctx *c) {
     Hos *os=owner(c);Session *session=ipc_session(os,c->x[0]);
-    if(!session || session->kind==20){c->x[0]=R_HANDLE;return;}
+    if(!session || session->kind>=20){c->x[0]=R_HANDLE;return;}
     uint64_t address=c->tpidrro_el0;
     if(!hos_access(os,address,128,3)){c->x[0]=R_MEMORY;return;}
     uint8_t request[128];memcpy(request,os->memory+address,sizeof(request));

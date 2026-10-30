@@ -10,7 +10,7 @@ def symbol(name='', defined=False, value=0, bind='global', visibility=0, section
 
 
 def module(name, symbols=None, relocs=(), words=(0xd65f03c0,)):
-    image=bytearray(256)
+    image=bytearray(max(256,4*len(words)))
     for i,w in enumerate(words):struct.pack_into('<I',image,4*i,w)
     return SimpleNamespace(name=name,image=image,symbols=symbols or [symbol(bind='local')],
         relocs=list(relocs),eh_funcs=[],dynamic={},build_id='synthetic',code_range=lambda:(0,len(words)*4))
@@ -70,3 +70,4 @@ class ImageTests(unittest.TestCase):
         self.assertEqual(report['counts']['visited_words'],1)
         report=Image([module('out',words=(0x14000040,))]).discover()
         self.assertEqual(report['counts']['external_direct_edges'],1)
+

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Single-thread bootstrap HLE for translated code. Not a Horizon kernel.
+ * Cooperative bootstrap HLE for translated code. Not a complete Horizon kernel.
  * Register ABI reference: switchbrew.org/wiki/SVC and switchbrew/libnx svc.h.
  */
 #ifndef _GNU_SOURCE
@@ -17,6 +17,7 @@
 #else
 #include <sys/mman.h>
 #include <sched.h>
+#include <ucontext.h>
 #endif
 #define SPACE (1ULL<<32)
 #define PAGE 4096ULL
@@ -33,16 +34,34 @@
 #define HOST_TLS _Thread_local
 #endif
 
-typedef struct { uint8_t state,permission; } Page;
+typedef struct { uint8_t state,permission,attribute; } Page;
+typedef struct { uint64_t src,dst,size; } Alias;
 typedef struct {uint32_t handle;int initialized,kind,domain;uint32_t next_object;uint8_t objects[16];int event_index;} Session;
+enum { T_FREE,T_CREATED,T_READY,T_RUNNING,T_WAIT,T_EXITED };
+typedef struct {
+    int kind,index;
+} WaitObject;
+typedef struct {
+    Hos *os;int slot,state,priority,wait_kind,cancel_pending;uint32_t handle,wait_refs;
+    uint64_t id,deadline,sync_address,sync_key,wait_order;uint32_t sync_tag;int lock_ref,lock_owner_slot;Ctx storage,*ctx;A64Fn entry;void *saved_run;
+    WaitObject waits[64];int wait_count,wait_index;uint32_t wait_result;
+#if defined(_WIN32)
+    void *fiber;
+#else
+    ucontext_t fiber;void *host_stack;
+#endif
+} GuestThread;
 struct Hos {
     Session sessions[64];
+    Alias aliases[64];
+    GuestThread threads[64];int current_thread,main_fiber_owned,background_fault;
+    uint64_t next_thread_id,background_pc,next_wait_order;char background_message[192];
     uint32_t next_session,log_destination;
     uint32_t performance_config[2];
     uint8_t performance_configured[2];
     uint32_t applet_messages[16],applet_head,applet_count;
     uint8_t applet_events[3],applet_self_flags[24];
-    int applet_foreground,applet_running,applet_exit_locked;
+    int applet_foreground,applet_running,applet_exit_locked,applet_started;
     uint8_t *memory;
     Page *pages;
     uint64_t heap,image_size;
@@ -50,7 +69,9 @@ struct Hos {
     int stop,thread_open,process_open,priority,trace;
     char message[192];
 };
-typedef struct Run { jmp_buf target; struct Run *parent; Hos *os; } Run;
+typedef struct Run { jmp_buf target; struct Run *parent; Hos *os;int reason;char message[192]; } Run;
+static void threads_destroy(Hos *os);
+static void cancel_thread_wait(Hos *os,GuestThread *thread);
 static HOST_TLS Run *active;
 static Hos *owner(Ctx *c) { return (Hos *)c->thread; }
 static int range(uint64_t a,uint64_t n) { return a<SPACE && n<=SPACE-a; }
@@ -82,7 +103,7 @@ int hos_map(Hos *os,uint64_t a,uint64_t n,uint32_t state,uint32_t p) {
 #endif
     if (!host_protect(os,a,n,p)) return 0;
     for (uint64_t i=a/PAGE;i<(a+n)/PAGE;i++) {
-        os->pages[i].state=(uint8_t)state;os->pages[i].permission=(uint8_t)p;
+        os->pages[i].state=(uint8_t)state;os->pages[i].permission=(uint8_t)p;os->pages[i].attribute=0;
     }
     return 1;
 }
@@ -101,13 +122,17 @@ Hos *hos_create(void) {
     os->trace=getenv("HOS_TRACE") && strcmp(getenv("HOS_TRACE"),"0")!=0;
     os->next_session=0x20000;os->log_destination=1;
     os->priority=44;os->thread_open=os->process_open=1;os->last_svc=~0u;
-    if(!hos_map(os,HOS_STACK_BASE,HOS_STACK_SIZE,11,3) || !hos_map(os,HOS_TLS_BASE,PAGE,5,3)) {
+    if(!hos_map(os,HOS_STACK_BASE,HOS_STACK_SIZE,11,3) || !hos_map(os,HOS_TLS_BASE,PAGE,12,3)) {
         hos_destroy(os);return NULL;
     }
+    os->threads[0].os=os;os->threads[0].state=T_RUNNING;os->threads[0].handle=HOS_MAIN_HANDLE;
+    os->threads[0].priority=44;os->threads[0].id=1;os->next_thread_id=1;
+    uint32_t main_handle=HOS_MAIN_HANDLE;memcpy(os->memory+HOS_TLS_BASE+0x110,&main_handle,4);
     return os;
 }
 void hos_destroy(Hos *os) {
     if(!os)return;
+    threads_destroy(os);
     if(os->memory) {
 #if defined(_WIN32)
         VirtualFree(os->memory,0,MEM_RELEASE);
@@ -137,7 +162,10 @@ void hos_context(Hos *os,Ctx *c) {
 static void stop(Ctx *c,int reason,const char *message) {
     Hos *os=owner(c);c->halted=1;
     os->stop=reason;snprintf(os->message,sizeof(os->message),"%s",message);
-    if(active && active->os==os)longjmp(active->target,1);
+    if(active && active->os==os) {
+        active->reason=reason;snprintf(active->message,sizeof(active->message),"%s",message);
+        longjmp(active->target,1);
+    }
 }
 void hos_applet_signal_gpu_error(Hos *os) { if(os)os->applet_events[2]=1; }
 int hos_applet_post_message(Hos *os,uint32_t message) {
@@ -146,10 +174,16 @@ int hos_applet_post_message(Hos *os,uint32_t message) {
     os->applet_count++;os->applet_events[0]=1;return 1;
 }
 int hos_run(Hos *os,Ctx *c,A64Fn entry) {
-    Run frame;frame.parent=active;frame.os=os;active=&frame;
-    c->halted=0;os->stop=HOS_STOP_RETURNED;os->message[0]=0;
-    if(setjmp(frame.target)==0)entry(c);
-    active=frame.parent;return os->stop;
+    Run *frame=(Run *)calloc(1,sizeof(*frame));
+    if(!frame){c->halted=1;os->stop=HOS_STOP_TRAP;snprintf(os->message,sizeof(os->message),"host run-frame allocation failed");return os->stop;}
+    frame->parent=active;frame->os=os;frame->reason=HOS_STOP_RETURNED;active=frame;
+    os->threads[os->current_thread].ctx=c;c->halted=0;
+    if(setjmp(frame->target)==0)entry(c);
+    active=frame->parent;os->threads[os->current_thread].saved_run=active;
+    if(frame->reason!=HOS_STOP_RETURNED)cancel_thread_wait(os,&os->threads[os->current_thread]);
+    if(!os->current_thread)os->threads[0].state=T_RUNNING;
+    os->stop=frame->reason;snprintf(os->message,sizeof(os->message),"%s",frame->message);
+    int result=frame->reason;free(frame);return result;
 }
 uint64_t hos_heap_size(Hos *os){return os->heap;}
 uint32_t hos_last_svc(Hos *os){return os->last_svc;}
@@ -161,6 +195,7 @@ static uint32_t resize_heap(Hos *os,uint64_t size) {
         if(!hos_map(os,HOS_HEAP_BASE+os->heap,size-os->heap,5,3))return R_RESOURCE;
     } else if(size<os->heap) {
         uint64_t a=HOS_HEAP_BASE+size,n=os->heap-size;
+        for(uint64_t i=a/PAGE;i<(a+n)/PAGE;i++)if(os->pages[i].attribute)return R_MEMORY;
 #if defined(_WIN32)
         if(!VirtualFree(os->memory+a,(SIZE_T)n,MEM_DECOMMIT))return R_RESOURCE;
 #else
@@ -170,7 +205,6 @@ static uint32_t resize_heap(Hos *os,uint64_t size) {
     }
     os->heap=size;return 0;
 }
-static int thread_handle(Hos *os,uint64_t h){return h==HOS_CURRENT_THREAD || (os->thread_open && h==HOS_MAIN_HANDLE);}
 static int process_handle(Hos *os,uint64_t h){return h==HOS_CURRENT_PROCESS || (os->process_open && h==HOS_PROCESS_HANDLE);}
 static uint64_t ticks(void) {
 #if defined(_WIN32)
@@ -181,10 +215,13 @@ static uint64_t ticks(void) {
     return (uint64_t)now.tv_sec*19200000ULL+(uint64_t)now.tv_nsec*19200000ULL/1000000000ULL;
 #endif
 }
+#include "memory.inc"
 #include "ipc.inc"
+#include "threads.inc"
+#include "sync.inc"
 
 void a64_svc(Ctx *c,uint32_t id) {
-    Hos *os=owner(c);os->last_svc=id;
+    Hos *os=owner(c);os->last_svc=id;os->threads[os->current_thread].ctx=c;
     if(os->trace)fprintf(stderr,"[HOS] SVC %#x pc=%#llx x0=%#llx x1=%#llx x2=%#llx x3=%#llx\n",id,
         (unsigned long long)c->pc,(unsigned long long)c->x[0],(unsigned long long)c->x[1],
         (unsigned long long)c->x[2],(unsigned long long)c->x[3]);
@@ -196,34 +233,48 @@ void a64_svc(Ctx *c,uint32_t id) {
         if(!n || n&(PAGE-1)){c->x[0]=R_SIZE;return;}
         if(p!=0 && p!=1 && p!=3){c->x[0]=R_PERMISSION;return;}
         if(!hos_access(os,a,n,0)){c->x[0]=R_MEMORY;return;}
-        for(uint64_t i=a/PAGE;i<(a+n)/PAGE;i++)if(os->pages[i].state!=5){c->x[0]=R_MEMORY;return;}
+        for(uint64_t i=a/PAGE;i<(a+n)/PAGE;i++)if(os->pages[i].state!=5 || os->pages[i].attribute){c->x[0]=R_MEMORY;return;}
         if(!host_protect(os,a,n,p)){c->x[0]=R_RESOURCE;return;}
         for(uint64_t i=a/PAGE;i<(a+n)/PAGE;i++)os->pages[i].permission=(uint8_t)p;
         c->x[0]=0;return;
     }
+    case 4: c->x[0]=stack_alias(c,0);return;
+    case 5: c->x[0]=stack_alias(c,1);return;
     case 6: {
         uint64_t out=c->x[0],a=c->x[2];
         if(!hos_access(os,out,0x28,2) || !range(a,1)){c->x[0]=R_MEMORY;return;}
         uint64_t page=a/PAGE,lo=page,hi=page+1;Page value=os->pages[page];
-        while(lo && os->pages[lo-1].state==value.state && os->pages[lo-1].permission==value.permission)lo--;
-        while(hi<SPACE/PAGE && os->pages[hi].state==value.state && os->pages[hi].permission==value.permission)hi++;
-        uint8_t info[0x28]={0};uint64_t base=lo*PAGE,size=(hi-lo)*PAGE;uint32_t state=value.state,perm=value.permission;
-        memcpy(info,&base,8);memcpy(info+8,&size,8);memcpy(info+16,&state,4);memcpy(info+24,&perm,4);
+        while(lo && os->pages[lo-1].state==value.state && os->pages[lo-1].permission==value.permission && os->pages[lo-1].attribute==value.attribute)lo--;
+        while(hi<SPACE/PAGE && os->pages[hi].state==value.state && os->pages[hi].permission==value.permission && os->pages[hi].attribute==value.attribute)hi++;
+        uint8_t info[0x28]={0};uint64_t base=lo*PAGE,size=(hi-lo)*PAGE;uint32_t state=value.state,perm=value.permission,attr=value.attribute;
+        memcpy(info,&base,8);memcpy(info+8,&size,8);memcpy(info+16,&state,4);memcpy(info+20,&attr,4);memcpy(info+24,&perm,4);
         memcpy(os->memory+out,info,sizeof(info));c->x[0]=c->x[1]=0;return;
     }
     case 7: stop(c,HOS_STOP_PROCESS_EXIT,"guest ExitProcess");return;
+    case 8: create_guest_thread(c);return;
+    case 9: start_guest_thread(c);return;
     case 10: stop(c,HOS_STOP_THREAD_EXIT,"guest ExitThread");return;
-    case 11: {
-        int64_t ns=(int64_t)c->x[0];
-#if defined(_WIN32)
-        if(ns<=0)SwitchToThread();else Sleep((DWORD)((uint64_t)ns/1000000ULL+((uint64_t)ns%1000000ULL!=0)));
-#else
-        if(ns<=0)sched_yield();else {struct timespec duration={ns/1000000000LL,ns%1000000000LL};while(nanosleep(&duration,&duration)&&errno==EINTR){}}
-#endif
+    case 11: sleep_guest_thread(c);return;
+    case 12: {
+        GuestThread *t=kernel_thread(os,c->x[1]);if(!t){c->x[0]=R_HANDLE;return;}
+        c->x[0]=0;c->x[1]=(uint64_t)t->priority;return;
+    }
+    case 13: {
+        GuestThread *t=kernel_thread(os,c->x[0]);if(!t)c->x[0]=R_HANDLE;
+        else if(c->x[1]>63)c->x[0]=0xe001;
+        else{t->priority=(int)c->x[1];if(!t->slot)os->priority=t->priority;c->x[0]=0;}
         return;
     }
-    case 12: c->x[0]=thread_handle(os,c->x[1])?0:R_HANDLE;c->x[1]=(uint64_t)os->priority;return;
-    case 13: if(!thread_handle(os,c->x[0]))c->x[0]=R_HANDLE;else if(c->x[1]>63)c->x[0]=R_ENUM;else{os->priority=(int)c->x[1];c->x[0]=0;}return;
+    case 14: {
+        if(!kernel_thread(os,c->x[2])){c->x[0]=R_HANDLE;return;}
+        c->x[0]=0;c->x[1]=0;c->x[2]=1;return;
+    }
+    case 15: {
+        if(!kernel_thread(os,c->x[0])){c->x[0]=R_HANDLE;return;}
+        int32_t core=(int32_t)c->x[1];
+        if(c->x[2]!=1 || (core!=0 && core!=-1 && core!=-2 && core!=-3)){c->x[0]=0xe201;return;}
+        c->x[0]=0;return;
+    }
     case 16: c->x[0]=0;return; /* Single main-thread profile, core 0. */
     case 18: case 23: {
         Session *event=ipc_session(os,c->x[0]);
@@ -231,44 +282,28 @@ void a64_svc(Ctx *c,uint32_t id) {
         if(id==23 && !os->applet_events[event->event_index]){c->x[0]=0xfa01;return;}
         os->applet_events[event->event_index]=0;c->x[0]=0;return;
     }
-    case 24: {
-        int32_t count=(int32_t)c->x[2];
-        if(count<0 || count>64){c->x[0]=0xee01;return;}
-        if(count && !hos_access(os,c->x[1],(uint64_t)count*4,1)){c->x[0]=R_MEMORY;return;}
-        Session *events[64];
-        for(int32_t i=0;i<count;i++) {
-            uint32_t handle;memcpy(&handle,os->memory+c->x[1]+4*i,4);
-            events[i]=ipc_session(os,handle);
-            if(!events[i] || events[i]->kind!=20){c->x[0]=R_HANDLE;return;}
-        }
-        for(int32_t i=0;i<count;i++)if(os->applet_events[events[i]->event_index]){c->x[0]=0;c->x[1]=(uint32_t)i;return;}
-        if(!c->x[3]){c->x[0]=0xea01;return;}
-        stop(c,HOS_STOP_UNIMPLEMENTED,"blocking event wait requires a scheduler/host event source");return;
+    case 24: wait_guest_objects(c);return;
+    case 25: {
+        GuestThread *t=kernel_thread(os,c->x[0]);if(!t){c->x[0]=R_HANDLE;return;}
+        if(t->state==T_WAIT && t->wait_kind==1){t->state=T_READY;t->wait_result=0xec01;t->cancel_pending=0;}
+        else t->cancel_pending=1;
+        c->x[0]=0;return;
     }
     case 22:
-        {Session *session=ipc_session(os,c->x[0]);if(session){session->handle=0;c->x[0]=0;return;}}
+        {Session *session=ipc_session(os,c->x[0]);if(session){session->handle=0;reap_guest_threads(os);c->x[0]=0;return;}}
         if(c->x[0]==HOS_MAIN_HANDLE && os->thread_open){os->thread_open=0;c->x[0]=0;}
         else if(c->x[0]==HOS_PROCESS_HANDLE && os->process_open){os->process_open=0;c->x[0]=0;}
         else c->x[0]=R_HANDLE;
         return;
-    case 29: { /* SignalProcessWideKey: void ABI, key rounded down to u32. */
-        /* This profile has one runnable thread and cannot register waiters:
-         * CreateThread and WaitProcessWideKeyAtomic still stop explicitly.
-         * With an empty wait queue, signaling clears the guest waiter flag.
-         * A failed user write is ignored, as in the kernel's void signal path.
-         * Revisit this branch when a scheduler/wait queue is introduced.
-         */
-        uint64_t key=c->x[0]&~3ULL;
-        if(hos_access(os,key,sizeof(uint32_t),2)) {
-            uint32_t no_waiters=0;memcpy(os->memory+key,&no_waiters,sizeof(no_waiters));
-        }
-        return;
-    }
+    case 26: c->x[0]=sync_lock(c);return;
+    case 27: c->x[0]=sync_unlock(c,c->x[0]);return;
+    case 28: c->x[0]=sync_wait_key(c);return;
+    case 29: sync_signal_key(c);return;
     case 30: c->x[0]=ticks();return;
     case 31: ipc_connect(c);return;
     case 33: ipc_send(c);return;
     case 36: if(process_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;
-    case 37: if(thread_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;
+    case 37: {GuestThread *t=kernel_thread(os,c->x[1]);if(t){c->x[0]=0;c->x[1]=t->id;}else c->x[0]=R_HANDLE;return;}
     case 38: {
         char text[192];uint32_t result=0;
         int has_result=c->x[2]==sizeof(result) && hos_access(os,c->x[1],sizeof(result),1);

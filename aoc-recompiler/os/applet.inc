@@ -27,7 +27,10 @@ static int applet_request(Ctx *c,Session *session,int kind,int domain,uint32_t c
     if(kind==5 && command==0) { /* appletOE OpenApplicationProxy */
         if(!pid || copies!=1 || size<8){c->x[0]=0x1c01;return 1;}
         if(!process_handle(os,process)){c->x[0]=R_HANDLE;return 1;}
-        return applet_child(c,session,6,domain,token);
+        if(!os->applet_started && os->applet_count==16){c->x[0]=0xce01;return 1;}
+        int result=applet_child(c,session,6,domain,token);
+        if(c->x[0]==0 && !os->applet_started){os->applet_started=1;hos_applet_post_message(os,15);}
+        return result;
     }
     if(kind==6) { /* IApplicationProxy */
         /* Library/audio/display/debug factories provide typed object identities.
@@ -38,7 +41,7 @@ static int applet_request(Ctx *c,Session *session,int kind,int domain,uint32_t c
     }
     if(kind==7) { /* ICommonStateGetter */
         if(command==0)return applet_event(c,0,domain,token);
-        if(command==2) {
+        if(command==1) {
             uint32_t result=0,value=0;
             if(!os->applet_count)result=0x680; /* AM NoMessages. */
             else {

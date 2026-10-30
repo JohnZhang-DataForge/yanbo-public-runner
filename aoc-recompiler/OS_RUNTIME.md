@@ -1,6 +1,6 @@
 # Bootstrap OS runtime
 
-This is a single-main-thread host implementation, not a complete Switch OS.
+This is a cooperative guest-thread host implementation, not a complete Switch OS.
 It reserves guest virtual memory, maps the linked image, stack and TLS, manages
 heap size and permissions, and provides memory queries, main-thread/process
 handles and IDs, priorities, clocks, debug output, and exit handling.
@@ -26,7 +26,7 @@ Twenty unit tests and synthetic guest tests cover symbol validation, explicit
 entry execution, startup sequencing and stopping before nnMain on an early failure.
 No successful game boot or gameplay is claimed.
 
-Thread creation/scheduling, blocking synchronization, most service backends, filesystem,
+Preemptive scheduling, additional service backends, filesystem,
 GPU, audio, and input remain unimplemented. Image pages currently use a coarse
 read/write mapping instead of per-segment permissions. The heap uses a bounded
 1 GiB diagnostic profile. Firmware and production keys are not loaded or needed
@@ -87,3 +87,6 @@ https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/40985474
 IPC transport, service-manager registration, domain objects and a logging backend
 are now implemented; see [IPC_RUNTIME.md](IPC_RUNTIME.md). Earlier startup stops
 in this document describe prior diagnostic stages, not current feature coverage.
+
+Stack mapping, cooperative guest threads and basic mutex/condition-variable waits
+are now implemented; see [KERNEL_BOOTSTRAP.md](KERNEL_BOOTSTRAP.md).

@@ -30,6 +30,10 @@ static void check_applet(Hos *os,uint32_t sm) {
     uint32_t self=applet_test_child(&c,manager,proxy,1);
     uint32_t window=applet_test_child(&c,manager,proxy,2);
     uint32_t functions=applet_test_child(&c,manager,proxy,20);
+    apm_test_domain(common,1,0);c.x[0]=manager;a64_svc(&c,33);
+    assert(c.x[0]==0 && ipc_test_word(40)==0 && ipc_test_word(48)==15); /* Initial foreground focus transition. */
+    applet_test_open_proxy(HOS_CURRENT_PROCESS);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(48)!=proxy);
+    apm_test_domain(common,1,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(40)==0x680); /* No duplicate launch message. */
     applet_test_child(&c,manager,proxy,11);
     uint32_t audio=applet_test_child(&c,manager,proxy,3);
     applet_test_child(&c,manager,proxy,4);
@@ -76,15 +80,15 @@ static void check_applet(Hos *os,uint32_t sm) {
     assert(hos_applet_post_message(os,0x66));
     uint32_t messages[3]={0x11223344,0x55,0x66};
     for(unsigned i=0;i<3;i++){
-        apm_test_domain(common,2,0);c.x[0]=manager;a64_svc(&c,33);
+        apm_test_domain(common,1,0);c.x[0]=manager;a64_svc(&c,33);
         assert(c.x[0]==0 && ipc_test_word(40)==0 && ipc_test_word(48)==messages[i]);
     }
     applet_test_poll(&c,event2,0,0);assert(c.x[0]==0xea01);
-    apm_test_domain(common,2,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(40)==0x680);
+    apm_test_domain(common,1,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(40)==0x680);
     for(unsigned i=0;i<16;i++)assert(hos_applet_post_message(os,i));
     assert(!hos_applet_post_message(os,999));
     for(unsigned i=0;i<16;i++){
-        apm_test_domain(common,2,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(48)==i);
+        apm_test_domain(common,1,0);c.x[0]=manager;a64_svc(&c,33);assert(c.x[0]==0 && ipc_test_word(48)==i);
     }
     hos_applet_signal_gpu_error(os);
     applet_test_poll(&c,gpu_event,0,0);assert(c.x[0]==0 && c.x[1]==0);

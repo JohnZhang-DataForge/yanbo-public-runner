@@ -36,8 +36,9 @@ notifications; it does not implement rendering or GPU error recovery.
 ClearEvent and ResetSignal support these events. WaitSynchronization validates
 all handles before returning the first signaled index; zero-timeout polling
 returns TimedOut when nothing is ready. Zero-handle polling is also supported.
-An unsignaled wait with a nonzero timeout still stops explicitly, because the
-runtime has no guest scheduler or asynchronous host event loop. Event handles
+Unsignaled waits cooperate with the guest fiber scheduler; finite waits time
+out. An indefinite wait with no runnable guest or asynchronous host event source
+still stops explicitly rather than hanging. Event handles
 cannot be used as IPC endpoints.
 
 Native tests execute generated SVC wrappers and check proxy PID/handle
@@ -69,3 +70,9 @@ With that correction, the diagnostic reaches an explicit unsupported MapMemory
 (SVC 0x4) at guest PC 0x0b2fc900. Mapping stack aliases is a separate remaining
 kernel feature. This bounded test does not establish full-game execution,
 boot or graphics output.
+
+The current kernel adds cooperative guest fibers, condition variables and
+cancellable waits; see [KERNEL_BOOTSTRAP.md](KERNEL_BOOTSTRAP.md). The first
+application proxy now queues a one-time FocusStateChanged notification (15).
+ReceiveMessage is correctly dispatched on command 1; earlier command-2 wiring
+was a protocol error. Queue tests use the command ID from the service protocol.

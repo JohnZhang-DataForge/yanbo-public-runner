@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Link the single-thread OS diagnostic using a completed CPU diagnostic build."""
+"""Link the OS diagnostic using a completed CPU diagnostic build."""
 import argparse
 import json
 import os

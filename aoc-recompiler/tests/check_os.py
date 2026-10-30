@@ -17,8 +17,15 @@ from test_image import module,symbol
 with tempfile.TemporaryDirectory() as temporary:
     out=Path(temporary)/'generated'
     # SetHeapSize; ExitThread; unreachable MOVZ; RET; unknown SVC; unreachable MOVZ; RET.
-    words=(0xD4000021,0xD4000141,0xD2801FE0,0xD65F03C0,0xD4001FE1,0xD2801FE0,0xD65F03C0,0xD40003A1,0xD65F03C0,0xD40004C1,0xD65F03C0,0xD40003E1,0xD65F03C0,0xD4000421,0xD65F03C0,0xD4000301,0xD65F03C0)
-    image=Image([module('synthetic',[symbol(bind='local'),symbol('unknown',True,16),symbol('return',True,12),symbol('signal',True,28),symbol('break',True,36),symbol('connect',True,44),symbol('send',True,52),symbol('wait',True,60)],words=words)])
+    words=(0xD4000021,0xD4000141,0xD2801FE0,0xD65F03C0,0xD4001FE1,0xD2801FE0,0xD65F03C0,0xD40003A1,0xD65F03C0,0xD40004C1,0xD65F03C0,0xD40003E1,0xD65F03C0,0xD4000421,0xD65F03C0,0xD4000301,0xD65F03C0,0xD4000081,0xD65F03C0,0xD40000A1,0xD65F03C0,
+        0xAA0003F3,0x52800021,0xB9000261,0xD53BD062,0xF9000662,0x92800000,0xD4000161,0x52800041,0xB9000261,0xD4000141,0xD65F03C0,
+        0xD4001FE1,0xD65F03C0,0xD4000101,0xD65F03C0,0xD4000121,0xD65F03C0,
+        0xAA0003F3,0x52800021,0xB9000261,0x92800000,0xD4000161,0xB9401260,0xD40002C1,0x52800041,0xB9000261,0xD4000141,0xD65F03C0,
+        0xAA0003F3,0xB9400E60,0xAA1303E1,0xB9401262,0xD4000341,0xB9000A60,0xB9400261,0xB9002261,0x52800021,0xB9000661,0xAA1303E0,0xD4000361,0xD4000141,0xD65F03C0,
+        0xAA0003F3,0xAA1303E0,0x91006261,0xB9401262,0xF9401663,0xD4000381,0xB9000A60,0xB9400261,0xB9002261,0x52800021,0xB9000661,0x35000060,0xAA1303E0,0xD4000361,0xD4000141,0xD65F03C0,
+        0xAA0003F3,0x52800074,0xB9400261,0x11000421,0xB9000261,0x92800000,0xD4000161,0x71000694,0x54FFFF41,0xD4000141,0xD65F03C0,
+        0xAA0003F3,0xAA1303E1,0x52800022,0x92800003,0xD4000301,0xB9000A60,0xD4000141,0xD65F03C0)
+    image=Image([module('synthetic',[symbol(bind='local'),symbol('unknown',True,16),symbol('return',True,12),symbol('signal',True,28),symbol('break',True,36),symbol('connect',True,44),symbol('send',True,52),symbol('wait',True,60),symbol('map',True,68),symbol('unmap',True,76),symbol('thread_entry',True,84),symbol('thread_fault',True,128),symbol('create',True,136),symbol('start',True,144),symbol('thread_close_self',True,152),symbol('mutex_thread',True,196),symbol('cv_thread',True,252),symbol('priority_competitor',True,316),symbol('cancel_waiter',True,360)],words=words)])
     lift(image,out)
     compiler=shutil.which('clang') or shutil.which('gcc')
     executable=out/('hos-test.exe' if os.name=='nt' else 'hos-test')
