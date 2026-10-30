@@ -19,7 +19,9 @@ NotSupported, and unsupported GPU commands stop explicitly. Domain service
 factories/conversion remain unsupported. This is not a GPU command processor,
 shader compiler or renderer; opening a device does not execute GPU work.
 
-The supplied game passes driver initialization and next requests `time:u`.
+The supplied game passes driver initialization and then initializes `time:u`.
+Clock support is documented in `TIME_RUNTIME.md`; the current private stop is
+recorded in `STARTUP_PROGRESS.md`.
 Native synthetic tests cover invalid initialization inputs, transfer lifetime,
 allocator-slot reuse while pinned, clone/FD sharing, peer close, aliases, bad
 device names, configuration framing and unsupported operation diagnostics.

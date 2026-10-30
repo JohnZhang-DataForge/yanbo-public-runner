@@ -69,8 +69,8 @@ handle keeps pages locked while the driver retains the object; final release
 restores RW ownership. Other copied transfer handles and remote maps remain
 unsupported. See `NVDRV_RUNTIME.md`.
 Transfer handles are neither waitable events nor IPC endpoints. The private
-game now passes its 8 MiB transfer allocation and stops at the absent `nvdrv`
-service. No renderer or GPU behavior is supplied by this memory object.
+game passes its 8 MiB transfer allocation and nvdrv initialization; see
+`STARTUP_PROGRESS.md` for the current stop. No renderer or GPU behavior is supplied by this memory object.
 
 Synthetic native tests execute a lifted SVC wrapper and cover all three owner
 permissions, QueryMemory, overlaps, locked heap protection, restoration, stale

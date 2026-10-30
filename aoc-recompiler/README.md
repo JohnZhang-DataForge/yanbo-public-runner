@@ -1,7 +1,8 @@
 # Age of Calamity recompiler research
 
 Status: **CPU translation prototype, not a playable Windows port.** The NSO loader has been validated against the supplied base-game ExeFS.
-Experimental native execution reaches `nnMain` and stops at the missing `nvdrv` GPU backend.
+Experimental native execution reaches `nnMain`, passes driver/clock initialization,
+and stops at the missing `fsp-srv` filesystem backend. GPU rendering is absent.
 A rendered boot screen and playability have not been established. See
 `STARTUP_PROGRESS.md` for the current private diagnostic and reproducible probe.
 
