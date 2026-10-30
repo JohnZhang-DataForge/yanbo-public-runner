@@ -36,7 +36,9 @@
 
 typedef struct { uint8_t state,permission,attribute; } Page;
 typedef struct { uint64_t src,dst,size; } Alias;
-typedef struct {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;uint64_t transfer_address,transfer_size;uint32_t transfer_permission;} Session;
+typedef struct {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;uint64_t transfer_address,transfer_size;uint32_t transfer_permission,transfer_refs;int nv_index;} Session;
+typedef struct { uint32_t id;uint8_t kind; } NvFd;
+typedef struct { uint32_t refs,next_fd;int initialized,transfer_index;uint64_t aruid,firmware_margin_request;NvFd fds[64]; } NvClient;
 enum { T_FREE,T_CREATED,T_READY,T_RUNNING,T_WAIT,T_EXITED };
 typedef struct {
     int kind,index;
@@ -53,6 +55,7 @@ typedef struct {
 } GuestThread;
 struct Hos {
     Session sessions[64];
+    NvClient nv_clients[64];
     Alias aliases[64];
     GuestThread threads[64];int current_thread,main_fiber_owned,background_fault;
     uint64_t next_thread_id,background_pc,next_wait_order;char background_message[192];
@@ -71,6 +74,7 @@ struct Hos {
 };
 typedef struct Run { jmp_buf target; struct Run *parent; Hos *os;int reason;char message[192]; } Run;
 static void threads_destroy(Hos *os);
+static uint32_t transfer_release(Hos *os,Session *object);
 static void cancel_thread_wait(Hos *os,GuestThread *thread);
 static HOST_TLS Run *active;
 static Hos *owner(Ctx *c) { return (Hos *)c->thread; }
@@ -293,7 +297,7 @@ void a64_svc(Ctx *c,uint32_t id) {
         c->x[0]=0;return;
     }
     case 22:
-        {Session *session=ipc_session(os,c->x[0]);if(session){if(session->kind==31){c->x[0]=close_transfer_memory(os,session);return;}session->handle=0;reap_guest_threads(os);c->x[0]=0;return;}}
+        {Session *session=ipc_session(os,c->x[0]);if(session){if(session->kind==31){c->x[0]=close_transfer_memory(os,session);return;}if(session->kind==18){uint32_t result=nv_release_session(os,session);if(result){c->x[0]=result;return;}}session->handle=0;reap_guest_threads(os);c->x[0]=0;return;}}
         if(c->x[0]==HOS_MAIN_HANDLE && os->thread_open){os->thread_open=0;c->x[0]=0;}
         else if(c->x[0]==HOS_PROCESS_HANDLE && os->process_open){os->process_open=0;c->x[0]=0;}
         else c->x[0]=R_HANDLE;

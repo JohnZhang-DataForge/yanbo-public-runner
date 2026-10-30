@@ -14,6 +14,7 @@ static void ipc_test_request(uint32_t type,uint32_t cmd,int pid) {
     if(pid)ipc_test_put(8,1);
     ipc_test_put(start,0x49434653);ipc_test_put(start+8,cmd);ipc_test_put(start+12,0x12345678);
 }
+#include "nvdrv_test.inc"
 #include "apm_test.inc"
 #include "applet_test.inc"
 #include "startup_services_test.inc"
@@ -35,6 +36,7 @@ static void check_ipc(Hos *os) {
     ipc_test_request(4,1,0);memcpy((uint8_t *)A64_PTR(HOS_TLS_BASE)+32,"fsp-srv",8);c.x[0]=handle;
     assert(hos_run(os,&c,f_08000034)==HOS_STOP_UNIMPLEMENTED);
     assert(strstr(hos_stop_message(os),"fsp-srv") && strstr(hos_stop_message(os),"service backend"));
+    check_nvdrv(os,handle);
     check_apm(os,handle);
     check_applet(os,handle);
     check_startup_services(os,handle);

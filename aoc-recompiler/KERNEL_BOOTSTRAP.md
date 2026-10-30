@@ -63,8 +63,10 @@ permission changes, stack mapping, and overlapping transfer objects cannot
 reuse these pages. CloseHandle restores RW ownership and clears the lock while
 preserving bytes; stale handles fail. Allocation failure does not alter pages.
 
-This profile supports creation and final local-handle close. Remote transfer
-maps, copied transfer handles and GPU service ownership are not implemented.
+This profile supports creation and retained nvdrv ownership. Closing the local
+handle keeps pages locked while the driver retains the object; final release
+restores RW ownership. Other copied transfer handles and remote maps remain
+unsupported. See `NVDRV_RUNTIME.md`.
 Transfer handles are neither waitable events nor IPC endpoints. The private
 game now passes its 8 MiB transfer allocation and stops at the absent `nvdrv`
 service. No renderer or GPU behavior is supplied by this memory object.

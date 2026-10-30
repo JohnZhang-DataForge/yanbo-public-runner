@@ -8,9 +8,9 @@ extern void f_08000010(Ctx *A64_NOESC);
 extern void f_0800001c(Ctx *A64_NOESC);
 extern void f_08000024(Ctx *A64_NOESC);
 static void set_heap(Ctx *c,uint64_t size){c->x[1]=size;a64_svc(c,1);}
-#include "ipc_test.inc"
 #include "memory_test.inc"
 #include "transfer_test.inc"
+#include "ipc_test.inc"
 #include "threads_test.inc"
 #include "sync_test.inc"
 int main(int argc,char **argv) {

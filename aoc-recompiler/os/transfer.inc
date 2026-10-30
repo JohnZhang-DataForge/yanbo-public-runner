@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Same-process transfer-object ownership. Remote maps/IPC copies are unsupported.
+ * Transfer-object ownership with retained nvdrv copies. Remote maps are unsupported.
  * Consulted Atmosphere transfer-memory SVC/object and page-table contracts.
  */
 static void create_transfer_memory(Ctx *c) {
@@ -16,17 +16,25 @@ static void create_transfer_memory(Ctx *c) {
     if(!handle){c->x[0]=0xd201;return;}
     Session *object=ipc_session(os,handle);
     if(!host_protect(os,address,size,permission)){object->handle=0;c->x[0]=R_RESOURCE;return;}
-    object->transfer_address=address;object->transfer_size=size;object->transfer_permission=permission;
+    object->transfer_refs=1;object->transfer_address=address;object->transfer_size=size;object->transfer_permission=permission;
     for(uint64_t i=address/PAGE;i<(address+size)/PAGE;i++) {
         os->pages[i].permission=(uint8_t)permission;os->pages[i].attribute=1;
     }
     c->x[0]=0;c->x[1]=handle;
 }
-static uint32_t close_transfer_memory(Hos *os,Session *object) {
+static uint32_t transfer_release(Hos *os,Session *object) {
+    if(object->transfer_refs>1){object->transfer_refs--;return 0;}
+    if(object->transfer_refs!=1)return R_HANDLE;
     uint64_t address=object->transfer_address,size=object->transfer_size;
     if(!host_protect(os,address,size,3))return R_RESOURCE;
     for(uint64_t i=address/PAGE;i<(address+size)/PAGE;i++) {
         os->pages[i].permission=3;os->pages[i].attribute=0;
     }
-    object->handle=0;return 0;
+    object->transfer_refs=0;return 0;
+}
+
+static uint32_t close_transfer_memory(Hos *os,Session *object) {
+    uint32_t result=transfer_release(os,object);
+    if(!result)object->handle=0;
+    return result;
 }
