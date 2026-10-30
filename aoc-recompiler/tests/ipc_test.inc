@@ -14,6 +14,7 @@ static void ipc_test_request(uint32_t type,uint32_t cmd,int pid) {
     if(pid)ipc_test_put(8,1);
     ipc_test_put(start,0x49434653);ipc_test_put(start+8,cmd);ipc_test_put(start+12,0x12345678);
 }
+#include "apm_test.inc"
 static void check_ipc(Hos *os) {
     Ctx c;hos_context(os,&c);uint64_t name=HOS_HEAP_BASE+256;
     memcpy(A64_PTR(name),"sm:",4);c.x[1]=name;
@@ -32,6 +33,7 @@ static void check_ipc(Hos *os) {
     ipc_test_request(4,1,0);memcpy((uint8_t *)A64_PTR(HOS_TLS_BASE)+32,"fsp-srv",8);c.x[0]=handle;
     assert(hos_run(os,&c,f_08000034)==HOS_STOP_UNIMPLEMENTED);
     assert(strstr(hos_stop_message(os),"fsp-srv") && strstr(hos_stop_message(os),"service backend"));
+    check_apm(os,handle);
     /* A real lm service returns a logger endpoint; requests dispatch by type. */
     ipc_test_request(4,1,0);memcpy((uint8_t *)A64_PTR(HOS_TLS_BASE)+32,"lm\0\0\0\0\0\0",8);c.x[0]=handle;a64_svc(&c,33);
     assert(c.x[0]==0 && (ipc_test_word(4)>>31)==1 && ipc_test_word(8)==32);

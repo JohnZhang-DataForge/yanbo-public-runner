@@ -112,6 +112,31 @@ static void ipc_send(Ctx *c) {
     if((type==5 || type==7) && command==3) { /* QueryPointerBufferSize: none supported. */
         ipc_response(os->memory+address,token,0,2,0,0,0,0);c->x[0]=0;return;
     }
+    if((type==4 || type==6) && kind==3) { /* apm IManager */
+        if(command==0) { /* OpenSession */
+            uint32_t object=domain?ipc_new_object(session,4):0;
+            uint32_t handle=domain?0:ipc_new_session(os,4);
+            if(!object && !handle){c->x[0]=0xd201;return;}
+            ipc_response(os->memory+address,token,0,0,0,handle,domain,object);c->x[0]=0;return;
+        }
+        if(command==1) { /* Host profile: Normal performance mode. */
+            ipc_response(os->memory+address,token,0,4,0,0,domain,0);c->x[0]=0;return;
+        }
+    }
+    if((type==4 || type==6) && kind==4 && (command==0 || command==1)) {
+        uint32_t required=command==0?8:4;
+        if(end-start-16<required){c->x[0]=0x1c01;return;}
+        uint32_t mode=ipc_read32(request+start+16);
+        if(mode>1) {ipc_response(os->memory+address,token,R_ENUM,0,0,0,domain,0);c->x[0]=0;return;}
+        if(command==0) { /* Retain guest configuration IDs; never alter host clocks. */
+            os->performance_config[mode]=ipc_read32(request+start+20);os->performance_configured[mode]=1;
+            ipc_response(os->memory+address,token,0,0,0,0,domain,0);c->x[0]=0;return;
+        }
+        if(!os->performance_configured[mode]) {
+            stop(c,HOS_STOP_UNIMPLEMENTED,"apm GetPerformanceConfiguration: no guest configuration selected for this mode");return;
+        }
+        ipc_response(os->memory+address,token,0,4,os->performance_config[mode],0,domain,0);c->x[0]=0;return;
+    }
     if((type==4 || type==6) && kind==1 && command==0) { /* lm OpenLogger */
         if(!(special&1) || end-start-16<8){c->x[0]=0x1c01;return;}
         uint32_t object=domain?ipc_new_object(session,2):0;
@@ -143,9 +168,11 @@ static void ipc_send(Ctx *c) {
         }
         if(command==1 && session->initialized && end-start-16>=8) {
             char name[9];memcpy(name,request+start+16,8);name[8]=0;
-            if(!memcmp(name,"lm\0\0\0\0\0\0",8)) {
-                uint32_t object=domain?ipc_new_object(session,1):0;
-                uint32_t handle=domain?0:ipc_new_session(os,1);
+            int service_kind=!memcmp(name,"lm\0\0\0\0\0\0",8)?1:
+                             !memcmp(name,"apm\0\0\0\0\0",8)?3:-1;
+            if(service_kind>=0) {
+                uint32_t object=domain?ipc_new_object(session,service_kind):0;
+                uint32_t handle=domain?0:ipc_new_session(os,service_kind);
                 if(!object && !handle){c->x[0]=0xd201;return;}
                 ipc_response(os->memory+address,token,0,0,0,handle,domain,object);c->x[0]=0;return;
             }

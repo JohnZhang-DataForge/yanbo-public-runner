@@ -38,6 +38,8 @@ typedef struct {uint32_t handle;int initialized,kind,domain;uint32_t next_object
 struct Hos {
     Session sessions[64];
     uint32_t next_session,log_destination;
+    uint32_t performance_config[2];
+    uint8_t performance_configured[2];
     uint8_t *memory;
     Page *pages;
     uint64_t heap,image_size;

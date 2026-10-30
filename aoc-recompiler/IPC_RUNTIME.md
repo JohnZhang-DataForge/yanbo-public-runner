@@ -14,7 +14,7 @@ lists, and arbitrary descriptor combinations remain unsupported.
 
 Implemented commands:
 
-- SM RegisterClient with a PID descriptor, and GetService for `lm`.
+- SM RegisterClient with a PID descriptor, and GetService for `lm` and `apm`.
 - QueryPointerBufferSize returns zero (no server pointer buffer).
 - ConvertCurrentObjectToDomain, bounded domain object allocation/lookup/close.
 - `lm` OpenLogger, returning a moved handle or domain object as appropriate.
@@ -57,3 +57,29 @@ GetService `apm` (power management), at SVC 0x21 / guest PC 0x0b2fca50.
 The IPC transport and logging barriers are passed. `apm` and other remaining
 service backends are not implemented by this change. This bounded test does
 not establish full-game execution correctness, boot or gameplay.
+
+## APM performance service
+
+The `apm` manager supports OpenSession (command 0) and GetPerformanceMode
+(command 1). The native diagnostic profile reports Normal (0). Its sessions
+support SetPerformanceConfiguration (0) and GetPerformanceConfiguration (1)
+for Normal (0) and Boost (1), including domain-object forms of these calls.
+
+Configuration IDs are retained as opaque guest-selected values, independently
+for the two modes and shared across this process's sessions. No Windows clock
+or power setting is changed, and these values are not a model of Switch clock
+frequencies. Reading a mode before the guest selects a configuration stops
+explicitly rather than inventing a default ID. Invalid mode values return a
+CMIF error; malformed payloads are rejected without modifying configuration.
+Other APM commands remain unsupported.
+
+Native tests cover mode reporting, moved sessions, configuration readback and
+isolation, independent manager/session lifetimes, sharing across sessions,
+domain calls, malformed input, invalid modes, and configured zero values.
+The private 873-function startup diagnostic now obtains `apm` and proceeds to
+SM GetService `appletOE`, the next unimplemented service. This private run does
+not exercise every performance operation; those are checked synthetically.
+
+APM protocol reference (consulted, not copied):
+https://github.com/switchbrew/libnx/blob/master/nx/source/services/apm.c
+https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/apm.h
