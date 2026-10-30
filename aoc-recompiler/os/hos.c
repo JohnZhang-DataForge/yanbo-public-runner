@@ -60,8 +60,8 @@ struct Hos {
     uint32_t performance_config[2];
     uint8_t performance_configured[2];
     uint32_t applet_messages[16],applet_head,applet_count;
-    uint8_t applet_events[3],applet_self_flags[24];
-    int applet_foreground,applet_running,applet_exit_locked,applet_started;
+    uint8_t applet_events[4],applet_self_flags[24];
+    int applet_foreground,applet_running,applet_exit_locked,applet_started,policy_initialized;
     uint8_t *memory;
     Page *pages;
     uint64_t heap,image_size;

@@ -88,3 +88,6 @@ https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/apm.h
 Applet proxy/state/message-event support is described in
 [APPLET_RUNTIME.md](APPLET_RUNTIME.md). Historical stops above describe prior
 startup checkpoints, not the current service registry.
+
+The current base-game service additions (`aoc:u` and `pctl` family) are described
+in [STARTUP_SERVICES.md](STARTUP_SERVICES.md).

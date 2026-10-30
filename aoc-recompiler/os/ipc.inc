@@ -44,6 +44,8 @@ static void ipc_response(uint8_t *message,uint32_t token,uint32_t result,uint32_
     if(object)ipc_write32(message+start+16+payload_size,object);
 }
 #include "applet.inc"
+#include "addon.inc"
+#include "policy.inc"
 
 static void ipc_send(Ctx *c) {
     Hos *os=owner(c);Session *session=ipc_session(os,c->x[0]);
@@ -119,6 +121,8 @@ static void ipc_send(Ctx *c) {
     if((type==5 || type==7) && command==3) { /* QueryPointerBufferSize: none supported. */
         ipc_response(os->memory+address,token,0,2,0,0,0,0);c->x[0]=0;return;
     }
+    if((type==4 || type==6) && (kind==16 || kind==17) && policy_request(c,session,kind,domain,command,token,end-start-16,special&1))return;
+    if((type==4 || type==6) && kind==15 && addon_request(c,domain,command,token,end-start-16,special&1))return;
     if((type==4 || type==6) && kind>=5 && kind<=10 &&
         applet_request(c,session,kind,domain,command,token,request+start+16,end-start-16,special&1,copies,process))return;
     if((type==4 || type==6) && kind==3) { /* apm IManager */
@@ -179,7 +183,10 @@ static void ipc_send(Ctx *c) {
             char name[9];memcpy(name,request+start+16,8);name[8]=0;
             int service_kind=!memcmp(name,"lm\0\0\0\0\0\0",8)?1:
                              !memcmp(name,"apm\0\0\0\0\0",8)?3:
-                             !memcmp(name,"appletOE",8)?5:-1;
+                             !memcmp(name,"appletOE",8)?5:
+                             !memcmp(name,"aoc:u\0\0\0",8)?15:
+                             (!memcmp(name,"pctl\0\0\0\0",8) || !memcmp(name,"pctl:s\0\0",8) ||
+                              !memcmp(name,"pctl:r\0\0",8) || !memcmp(name,"pctl:a\0\0",8))?16:-1;
             if(service_kind>=0) {
                 uint32_t object=domain?ipc_new_object(session,service_kind):0;
                 uint32_t handle=domain?0:ipc_new_session(os,service_kind);
