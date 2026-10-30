@@ -26,8 +26,9 @@ Twenty unit tests and synthetic guest tests cover symbol validation, explicit
 entry execution, startup sequencing and stopping before nnMain on an early failure.
 No successful game boot or gameplay is claimed.
 
-Preemptive scheduling, additional service backends, filesystem,
-GPU, audio, and input remain unimplemented. Image pages currently use a coarse
+Preemptive scheduling, additional service backends, general writable filesystem,
+GPU, audio, and input remain unimplemented. Read-only RomFS storage is documented
+in `FS_RUNTIME.md`. Image pages currently use a coarse
 read/write mapping instead of per-segment permissions. The heap uses a bounded
 3.25 GiB application profile; see `KERNEL_BOOTSTRAP.md`. Firmware and production keys are not loaded or needed
 for these tests. Do not commit keys, firmware, game images, or generated game code.

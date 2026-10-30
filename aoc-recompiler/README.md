@@ -2,7 +2,8 @@
 
 Status: **CPU translation prototype, not a playable Windows port.** The NSO loader has been validated against the supplied base-game ExeFS.
 Experimental native execution reaches `nnMain`, passes driver/clock initialization,
-and stops at the missing `fsp-srv` filesystem backend. GPU rendering is absent.
+reads real RomFS metadata, and stops at the missing `vi:m` display backend.
+GPU rendering is absent.
 A rendered boot screen and playability have not been established. See
 `STARTUP_PROGRESS.md` for the current private diagnostic and reproducible probe.
 
@@ -48,7 +49,7 @@ translator is separate from translating and linking a complete game.
 
 The sections below describe the original translator and its individual tools.
 Current kernel and service behavior is documented in `KERNEL_BOOTSTRAP.md`,
-`APPLET_RUNTIME.md`, and `STARTUP_SERVICES.md`. Supplying RomFS alone cannot
+`APPLET_RUNTIME.md`, `STARTUP_SERVICES.md`, and `FS_RUNTIME.md`. Supplying RomFS alone cannot
 replace executable translation or the missing graphics runtime.
 
 Instruction semantics reference: Arm Instruction Set Reference Guide,

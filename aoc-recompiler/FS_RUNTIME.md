@@ -8,7 +8,7 @@ and report genuine I/O failures. Writes and unsupported operations stop.
 
 Mount a raw, decrypted RomFS image before startup using `HOS_ROMFS_PATH` or the
 private probe's `--romfs` argument. Missing input is an explicit stop, not an
-empty successful filesystem. Images are opened read-only, structurally checked,
+empty successful filesystem. Images are opened read-only, their header/table spans are checked,
 and bound once for the lifetime of the host process. Guest paths never become
 host filesystem paths.
 
@@ -29,6 +29,7 @@ one client does not destroy the table while another clone still references it.
 Closed owner slots cannot be recycled prematurely. Object creation and explicit
 domain close affect all clones; stale IDs remain invalid. The global immutable
 RomFS backing survives storage-object close and is released when Hos is destroyed.
+GetGlobalAccessLogMode (1005) reports disabled logging in this profile.
 Other service-domain cloning remains unsupported.
 
 Native synthetic tests cover registration, clone sharing, owner-slot reuse,
@@ -38,9 +39,20 @@ Windows fixture uses a sparse file rather than allocating 4 GiB of physical data
 Python tests independently traverse emitted RomFS hash chains and read files,
 including nested UTF-8 names, and exercise unsafe/ambiguous archive input.
 
+The packaged Windows tool also provides:
+
+```powershell
+.\aoc-tool.exe build-romfs .\dlc.zip .\base.romfs
+```
+
 The supplied archive was downloaded privately and its base image was generated
-with 1086 files in 6 directories (11384795826 bytes). Public tests use synthetic
-archives only. Service/data access does not establish rendered boot or gameplay.
+with 1086 files in 6 directories (11384795826 bytes). The real guest read the header and directory/file hash/entry tables through
+six successful storage reads and proceeded to `vi:m` display-service lookup.
+Public tests use synthetic archives only. Service/data access does not establish
+rendered boot or gameplay.
+
+Windows native tests and packaged command smoke tests passed:
+https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/41137313824
 
 Primary ABI/layout sources consulted (not copied):
 

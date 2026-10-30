@@ -9,19 +9,25 @@ The current private run completes all six exported SDK stages:
 `_init_libc0`, `nnosInitialize`, `_init_libc1`,
 `nninitInitializeSdkModule`, `nninitStartup`, and `_init_libc2`.
 It reserves a 3.25 GiB guest heap, completes all three module constructors
-(`main`, `subsdk0`, `sdk`), and enters `nnMain`. The 6,861-function private
+(`main`, `subsdk0`, `sdk`), and enters `nnMain`. The 6,943-function private
 probe passes CPU boost, retained transfer-memory ownership, nvdrv initialization,
 service cloning, applet resource-ID registration and firmware-margin setup.
 The clock service supplies a read-only shared page using the same counter epoch
 as guest CPU instructions. The enlarged heap fixes an early normal return caused
 by failed backing allocation for the game's fixed startup pools (~3097 MiB).
 
-The current explicit stop is `SM GetService 'fsp-srv': service backend is not
-implemented`. The supplied Drive ZIP is accessible and its index contains both
-base `romfs/` and `dlcfs/`; it has not been mounted into a filesystem backend.
-There is no rendered boot screen or established playability. The GPU command
-processor, shader translation and renderer are still absent. Private game
-execution was tested on Linux; public Windows runs use synthetic fixtures only.
+The filesystem service now registers the process, shares domain objects across
+cloned sessions, and opens the supplied base-game RomFS as read-only IStorage.
+The archive was downloaded privately and converted to a 11384795826-byte image
+with 1086 files. The real guest successfully read its RomFS header, directory
+hash/table and file hash/table (six storage reads). The filesystem worker thread
+also runs. DLC remains excluded from the base mount.
+
+The current explicit stop is `SM GetService 'vi:m': service backend is not
+implemented`. This is the display-service boundary. A rendered boot frame and
+playability are not established; GPU command processing, shaders and rendering
+remain absent. Private game execution was tested on Linux; public Windows
+runs use synthetic fixtures only. See `FS_RUNTIME.md` for the filesystem ABI.
 
 ## Reproduce locally
 
@@ -31,7 +37,7 @@ and source code only. It requires a native C compiler and the existing lifter
 backend dependencies.
 
 ```sh
-python probe_startup.py /private/exefs.zip --out /private/startup-probe --stages 10
+python probe_startup.py /private/exefs.zip --out /private/startup-probe --stages 10 --romfs /private/base.romfs
 ```
 
 `--stages` selects how many manifest entries to compile, not how many startup
@@ -46,7 +52,7 @@ The dedicated output directory has an ownership marker. Re-running preserves
 cached objects but removes stale generated translation units. The log is saved
 as `startup-run.log`; its exit status is propagated by the tool.
 
-Public Windows verification for nvdrv, time and the expanded memory profile passed native
+Public Windows verification for the filesystem, 64-bit reads and packaged RomFS builder passed native
 CPU/OS tests and packaged tools:
-https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/41131148309
+https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/41137313824
 These are synthetic tests, not a public run of the game.

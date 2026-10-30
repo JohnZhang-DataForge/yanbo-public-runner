@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert report['files']==1
     data=(root/'base.romfs').read_bytes();header=struct.unpack_from('<10Q',data)
     assert header[0]==80 and data[header[9]:]==b'abc'
-    nso=root/'main' 
+    nso=root/'main'
     nso.write_bytes(fixture())
     path=root/'exefs.zip'
     with zipfile.ZipFile(path,'w') as z:z.write(nso,'exefs/main')

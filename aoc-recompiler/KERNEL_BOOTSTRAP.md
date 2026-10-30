@@ -103,5 +103,6 @@ the page becomes inaccessible. This reserves virtual capacity; it does not
 pretend that an unsuccessful host allocation succeeded.
 
 With the larger profile the private run advances beyond the failed game pool
-and requests `fsp-srv`. A normal nnMain return or successful native link is not
+and completes read-only `fsp-srv` RomFS mounting (see `FS_RUNTIME.md`).
+A normal nnMain return or successful native link is not
 a rendered game boot.
