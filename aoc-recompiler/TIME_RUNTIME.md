@@ -18,7 +18,7 @@ Both copies of each immutable context agree; time advances through the counter.
 The network source ID remains zero and differs from the steady source ID, so
 clients detect that network time has not been initialized.
 
-MapSharedMemory (0x13) maps this object read-only in the guest alias region.
+MapSharedMemory (0x13) maps this object read-only in free guest ASLR memory outside the reserved heap and stack regions.
 UnmapSharedMemory (0x14) removes an exact one-page view. Closing a public handle
 does not invalidate an existing view; another copied handle can unmap the same
 service-owned clock object. This is a dedicated immutable clock-page profile,

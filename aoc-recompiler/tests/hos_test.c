@@ -84,6 +84,13 @@ int main(int argc,char **argv) {
     assert(hos_run(os,&c,f_08000010)==HOS_STOP_UNIMPLEMENTED);
     assert(c.x[0]==0x1234 && c.halted && hos_last_svc(os)==0xff && c.pc==0x08000010);
     assert(strstr(hos_stop_message(os),"unimplemented SVC"));
+    /* Fixed startup pools request ~3097 MiB; a 3 GiB cap silently loses one. */
+    assert(HOS_HEAP_LIMIT>=3100ULL*1024*1024);
+    assert(HOS_STACK_REGION_BASE+HOS_STACK_REGION_SIZE<=(1ULL<<32));
+    hos_context(os,&c);set_heap(&c,HOS_HEAP_LIMIT);assert(c.x[0]==0);
+    uint64_t last=HOS_HEAP_BASE+HOS_HEAP_LIMIT-4096;
+    assert(hos_access(os,last,4096,3));*(uint64_t *)A64_PTR(last)=0x123456789abcdef0ULL;
+    set_heap(&c,0x200000);assert(c.x[0]==0 && !hos_access(os,last,1,1));
     hos_destroy(os);
     puts("HOS memory, TLS, heap, permissions, handles, SVC ABI and exit unwinding passed");
     return 0;

@@ -29,10 +29,15 @@ No successful game boot or gameplay is claimed.
 Preemptive scheduling, additional service backends, filesystem,
 GPU, audio, and input remain unimplemented. Image pages currently use a coarse
 read/write mapping instead of per-segment permissions. The heap uses a bounded
-1 GiB diagnostic profile. Firmware and production keys are not loaded or needed
+3.25 GiB application profile; see `KERNEL_BOOTSTRAP.md`. Firmware and production keys are not loaded or needed
 for these tests. Do not commit keys, firmware, game images, or generated game code.
 
-## Private base-game startup check
+## Historical startup checkpoints
+
+The checkpoints below describe earlier revisions; current service coverage is
+in `NVDRV_RUNTIME.md`, `TIME_RUNTIME.md`, and `STARTUP_PROGRESS.md`.
+
+### Private base-game startup check
 
 A bounded 348-function diagnostic slice compiled and ran locally with the exact
 base-game image. It returned from `_init_libc0`, entered `nnosInitialize`, and

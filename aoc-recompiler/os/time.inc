@@ -75,7 +75,9 @@ static uint32_t time_map_shared(Ctx *c,int unmap) {
     if(address&(PAGE-1))return R_ADDRESS;
     if(size!=PAGE)return R_SIZE;
     if(!object || object->kind!=32)return R_HANDLE;
-    if(address<HOS_ALIAS_BASE || address>HOS_ALIAS_BASE+HOS_ALIAS_SIZE-PAGE)return R_MEMORY;
+    if(address<HOS_IMAGE_BASE || !range(address,PAGE))return R_MEMORY;
+    if((address>=HOS_HEAP_BASE && address<HOS_HEAP_BASE+HOS_HEAP_LIMIT) ||
+       (address>=HOS_STACK_REGION_BASE && address<HOS_STACK_REGION_BASE+HOS_STACK_REGION_SIZE))return R_MEMORY;
     if(!unmap && c->x[3]!=1)return R_PERMISSION;
     if(unmap) {
         for(unsigned i=0;i<16;i++)if(os->clock_mappings[i]==address) {

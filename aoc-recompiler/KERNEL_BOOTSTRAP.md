@@ -11,7 +11,8 @@ UnmapMemory copies modifications back, restores source permissions and releases
 the view. Locked sources cannot be reprotected or removed by heap shrink.
 There are 64 mappings. Sources must be uniform writable normal memory or the
 loader's coarse writable image mapping. Partial unmaps, simultaneous physical
-aliases, DMA and shared-memory mappings are not implemented. Only one guest
+aliases, DMA and general writable shared-memory mappings are not implemented.
+The clock service has a dedicated immutable read-only page (`TIME_RUNTIME.md`). Only one guest
 view owns the bytes at a time; this is not a physical alias implementation.
 
 Guest threads use Windows fibers or POSIX ucontext on one host thread, with
@@ -80,3 +81,27 @@ Primary contracts consulted (not copied):
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/svc/kern_svc_transfer_memory.cpp
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/kern_k_transfer_memory.cpp
 - https://github.com/Atmosphere-NX/Atmosphere/blob/master/libraries/libmesosphere/source/kern_k_page_table_base.cpp
+
+## Application memory budget
+
+The base game's fixed startup pool requests total approximately 3097 MiB before
+allocator overhead. The former 1 GiB profile let some allocations fail; even a
+3 GiB heap still failed the 835 MiB backing allocation and caused an early
+normal return from nnMain. The guest window now reserves a 3.25 GiB heap while
+keeping all regions disjoint within the 32-bit address window:
+
+| Region | Guest range | Reserved size |
+| --- | --- | --- |
+| Heap | 0x20000000–0xf0000000 | 3328 MiB |
+| Alias | 0xf0000000–0xf4000000 | 64 MiB |
+| Stack | 0xf4000000–0xfc000000 | 128 MiB |
+
+The main stack occupies only the first 8 MiB of its reserved region. The clock
+shared page can map in free ASLR memory outside the reserved heap/stack ranges.
+Tests grow the complete heap, access its final page, then shrink and verify that
+the page becomes inaccessible. This reserves virtual capacity; it does not
+pretend that an unsuccessful host allocation succeeded.
+
+With the larger profile the private run advances beyond the failed game pool
+and requests `fsp-srv`. A normal nnMain return or successful native link is not
+a rendered game boot.
