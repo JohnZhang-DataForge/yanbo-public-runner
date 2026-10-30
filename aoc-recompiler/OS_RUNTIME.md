@@ -75,3 +75,11 @@ Set `HOS_TRACE=1` to log guest SVC IDs, PCs and the first four argument register
 Guest Break diagnostics now include reason, buffer, size, link register and a
 readable 32-bit result when supplied. These details identified the rejected
 GetInfo query; generated-guest tests verify the diagnostic result decoding.
+
+Final follow-up: a private 836-function slice returns normally from `_init_libc0`,
+`nnosInitialize`, and `_init_libc1`, then enters `nninitInitializeSdkModule`.
+It stops at unsupported ConnectToNamedPort (SVC 0x1f), guest PC 0x0b2fca3c.
+The earlier signaling and alias-query barriers are passed. Service sessions/IPC
+are the next runtime requirement; no synthetic success is returned for them.
+Windows verification for the code changes:
+https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/40985474883
