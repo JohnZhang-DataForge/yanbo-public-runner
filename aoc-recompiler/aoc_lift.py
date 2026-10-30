@@ -8,6 +8,7 @@ import shutil
 import struct
 import sys
 from aoc_image import Image, load_archive, BASE
+from startup import plan, header
 
 ROOT=Path(__file__).resolve().parent
 VENDOR=ROOT/'vendor/skybound'
@@ -61,6 +62,10 @@ def lift(image,out):
     rtgen.write(str(out))
     for name in ('a64.h','a64_rt.c'):shutil.copyfile(VENDOR/'rt'/name,out/name)
     (out/'image.bin').write_bytes(image.mem)
+    if 'nninitStartup' in image.exports:
+        manifest=plan(image)
+        (out/'startup.json').write_text(json.dumps(manifest,indent=2))
+        (out/'hos_startup.h').write_text(header(manifest))
     report=dict(functions=len(lifter.funcs),emitted_instructions=sum(len(b) for b,_ in lifter.funcs.values()),
                 translation_units=len(files),recovered_jump_tables=len(lifter.jt),
                 unresolved_indirect_branches=len(lifter.ijump),unhandled_patterns={f'{k:08x}':v for k,v in lifter.unhandled.items()},

@@ -10,13 +10,21 @@ Run `python tests/check_os.py` for generated guest SVC execution and native
 OS diagnostic build checks. After `build_lift.py`, run
 `python build_os.py OUTPUT_DIRECTORY`, then
 `OUTPUT_DIRECTORY/aoc-os-diagnostic OUTPUT_DIRECTORY/image.bin [entry-address]`.
-The entry address is diagnostic input; the default is the image base and does
-not establish that the retail startup contract has been reconstructed.
+New lifts generate `startup.json` and `hos_startup.h` from exported symbols and
+module DT_INIT addresses. Without an explicit entry override, the diagnostic runs
+an experimental host bootstrap sequence: libc0, OS initialization, libc1, SDK
+service initialization, game startup, libc2, module initializers, then nnMain.
+SDK service initialization is not skipped. Every stage must return normally
+before the next can run; an unsupported service, trap, exit or missing lifted
+function stops the sequence. This order is adapted from the supplied Skybound
+bootstrap as a hypothesis for this SDK; full retail initialization is not verified.
+Builds without a manifest require an explicit entry address.
 
-Linux synthetic tests pass. The full base-game output compiles and links with
-this layer. Running the default entry stops immediately at PC 0x08000000 with
-an explicit branch-to-non-function trap, before any SVC. Retail entry discovery
-and startup initialization still require work. This is not a successful boot.
+The previous default 0x08000000 was module metadata, not an executable entry.
+The image-derived startup exports avoid that erroneous diagnostic jump.
+Twenty unit tests and synthetic guest tests cover symbol validation, explicit
+entry execution, startup sequencing and stopping before nnMain on an early failure.
+No successful game boot or gameplay is claimed.
 
 Thread creation/scheduling, synchronization, IPC and service sessions, filesystem,
 GPU, audio, and input remain unimplemented. Image pages currently use a coarse

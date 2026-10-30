@@ -17,12 +17,13 @@ def build(directory):
     compiler=shutil.which('clang') or shutil.which('gcc')
     objects=directory/'objects';headers=directory/'diagnostic_headers'
     extra=[]
+    startup_flags=['-DHOS_HAS_STARTUP'] if (directory/'hos_startup.h').exists() else []
     for name in ('hos','boot_main'):
         target=objects/('os_'+name+'.o')
         subprocess.run([compiler,'-std=gnu11','-O0','-mcx16','-DA64_NO_MUSTTAIL',
             '-D_POSIX_C_SOURCE=200809L','-D_GNU_SOURCE','-Werror=implicit-function-declaration',
             '-include',str(headers/'a64.h'),'-I',str(headers),'-I',str(directory),'-I',str(ROOT/'os'),
-            '-c',str(ROOT/'os'/(name+'.c')),'-o',str(target)],check=True)
+            *startup_flags,'-c',str(ROOT/'os'/(name+'.c')),'-o',str(target)],check=True)
         extra.append(target)
     # Only use the objects belonging to the completed CPU build, excluding its main.
     original=(directory/'objects.rsp').read_text().splitlines()
