@@ -44,3 +44,22 @@ establish that later startup stages work. Game-derived output stays private.
 
 Windows source/synthetic CI passed:
 https://github.com/JohnZhang-DataForge/yanbo-public-runner/actions/runs/40984726004
+
+## SignalProcessWideKey fix
+
+SVC 0x1d now implements empty-queue signaling: align the key down to a 32-bit
+boundary and clear its guest has-waiters flag when writable. It has a void ABI:
+argument registers are preserved, and a failed user write is ignored. Count
+values (including zero and negative wake-all values) have no further effect
+when there are no waiters. This is a deliberately bounded single-thread case,
+not a scheduler implementation: thread creation and blocking condition-variable
+waits still stop explicitly, so this runtime cannot accumulate hidden waiters.
+
+Native generated-guest tests cover key alignment, register preservation, positive
+and wake-all counts, unmapped keys and read-only pages. The private startup slice
+passes the previous unsupported SVC and proceeds further in OS initialization.
+
+Behavior reference (consulted, not imported): Atmosphere-NX/Atmosphere,
+`libraries/libmesosphere/source/kern_k_condition_variable.cpp` and
+`libraries/libmesosphere/source/svc/kern_svc_condition_variable.cpp`:
+https://github.com/Atmosphere-NX/Atmosphere/tree/master/libraries/libmesosphere/source

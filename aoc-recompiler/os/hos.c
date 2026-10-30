@@ -209,6 +209,19 @@ void a64_svc(Ctx *c,uint32_t id) {
         else if(c->x[0]==HOS_PROCESS_HANDLE && os->process_open){os->process_open=0;c->x[0]=0;}
         else c->x[0]=R_HANDLE;
         return;
+    case 29: { /* SignalProcessWideKey: void ABI, key rounded down to u32. */
+        /* This profile has one runnable thread and cannot register waiters:
+         * CreateThread and WaitProcessWideKeyAtomic still stop explicitly.
+         * With an empty wait queue, signaling clears the guest waiter flag.
+         * A failed user write is ignored, as in the kernel's void signal path.
+         * Revisit this branch when a scheduler/wait queue is introduced.
+         */
+        uint64_t key=c->x[0]&~3ULL;
+        if(hos_access(os,key,sizeof(uint32_t),2)) {
+            uint32_t no_waiters=0;memcpy(os->memory+key,&no_waiters,sizeof(no_waiters));
+        }
+        return;
+    }
     case 30: c->x[0]=ticks();return;
     case 36: if(process_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;
     case 37: if(thread_handle(os,c->x[1])){c->x[0]=0;c->x[1]=1;}else c->x[0]=R_HANDLE;return;

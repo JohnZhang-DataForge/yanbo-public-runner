@@ -5,6 +5,7 @@
 #include <string.h>
 extern void f_08000000(Ctx *A64_NOESC);
 extern void f_08000010(Ctx *A64_NOESC);
+extern void f_0800001c(Ctx *A64_NOESC);
 static void set_heap(Ctx *c,uint64_t size){c->x[1]=size;a64_svc(c,1);}
 int main(int argc,char **argv) {
     assert(argc==2);
@@ -17,6 +18,15 @@ int main(int argc,char **argv) {
     assert(hos_run(os,&c,f_08000000)==HOS_STOP_THREAD_EXIT);
     assert(c.x[0]==0 && hos_heap_size(os)==0x200000 && c.pc==0x08000004);
     assert(hos_access(os,HOS_HEAP_BASE,0x200000,3));
+    /* Generated SVC 0x1d must clear an empty-queue flag and preserve void ABI. */
+    for(int count=-1;count<=2;count++) {
+        *(uint32_t *)A64_PTR(HOS_HEAP_BASE)=1;
+        c.x[0]=HOS_HEAP_BASE+3;c.x[1]=(uint64_t)(int64_t)count;c.x[2]=0x1234;
+        assert(hos_run(os,&c,f_0800001c)==HOS_STOP_RETURNED);
+        assert(*(uint32_t *)A64_PTR(HOS_HEAP_BASE)==0);
+        assert(c.x[0]==HOS_HEAP_BASE+3 && c.x[1]==(uint64_t)(int64_t)count && c.x[2]==0x1234);
+    }
+    c.x[0]=0;a64_svc(&c,29);assert(c.x[0]==0); /* Invalid user write is ignored. */
     memset(A64_PTR(HOS_HEAP_BASE),0x5a,0x200000);
     set_heap(&c,1);assert(c.x[0]==0xca01 && hos_heap_size(os)==0x200000);
     set_heap(&c,HOS_HEAP_LIMIT+0x200000);assert(c.x[0]==0xd001);
@@ -28,6 +38,8 @@ int main(int argc,char **argv) {
     c.x[0]=0;c.x[2]=HOS_HEAP_BASE;a64_svc(&c,6);assert(c.x[0]==0xd401);
     c.x[0]=HOS_HEAP_BASE;c.x[1]=4096;c.x[2]=1;a64_svc(&c,2);assert(c.x[0]==0);
     assert(hos_access(os,HOS_HEAP_BASE,4,1) && !hos_access(os,HOS_HEAP_BASE,4,2));
+    c.x[0]=HOS_HEAP_BASE;a64_svc(&c,29);
+    assert(c.x[0]==HOS_HEAP_BASE && *(uint32_t *)A64_PTR(HOS_HEAP_BASE)==0x5a5a5a5a);
     c.x[0]=HOS_HEAP_BASE;c.x[1]=4096;c.x[2]=3;a64_svc(&c,2);assert(c.x[0]==0);
     set_heap(&c,0);assert(c.x[0]==0 && !hos_access(os,HOS_HEAP_BASE,1,1));
     set_heap(&c,0x200000);assert(c.x[0]==0 && *(uint32_t *)A64_PTR(HOS_HEAP_BASE)==0);

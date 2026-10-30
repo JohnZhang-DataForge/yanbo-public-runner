@@ -17,8 +17,8 @@ from test_image import module,symbol
 with tempfile.TemporaryDirectory() as temporary:
     out=Path(temporary)/'generated'
     # SetHeapSize; ExitThread; unreachable MOVZ; RET; unknown SVC; unreachable MOVZ; RET.
-    words=(0xD4000021,0xD4000141,0xD2801FE0,0xD65F03C0,0xD4001FE1,0xD2801FE0,0xD65F03C0)
-    image=Image([module('synthetic',[symbol(bind='local'),symbol('unknown',True,16),symbol('return',True,12)],words=words)])
+    words=(0xD4000021,0xD4000141,0xD2801FE0,0xD65F03C0,0xD4001FE1,0xD2801FE0,0xD65F03C0,0xD40003A1,0xD65F03C0)
+    image=Image([module('synthetic',[symbol(bind='local'),symbol('unknown',True,16),symbol('return',True,12),symbol('signal',True,28)],words=words)])
     lift(image,out)
     compiler=shutil.which('clang') or shutil.which('gcc')
     executable=out/('hos-test.exe' if os.name=='nt' else 'hos-test')
