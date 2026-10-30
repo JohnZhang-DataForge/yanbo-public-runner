@@ -9,12 +9,13 @@ values so a closed handle cannot silently refer to a later session.
 The supported transport is HIPC/CMIF over the main thread's 128-byte TLS message
 area. Request/RequestWithContext and Control/ControlWithContext headers are
 parsed with declared-size bounds. PID placeholders are not trusted as host
-process identities. Input handle transfer, receive/exchange buffers, receive
+process identities. Input handle transfer beyond the validated process-handle copy used by
+OpenApplicationProxy, receive/exchange buffers, receive
 lists, and arbitrary descriptor combinations remain unsupported.
 
 Implemented commands:
 
-- SM RegisterClient with a PID descriptor, and GetService for `lm` and `apm`.
+- SM RegisterClient with a PID descriptor, and GetService for `lm`, `apm`, and `appletOE`.
 - QueryPointerBufferSize returns zero (no server pointer buffer).
 - ConvertCurrentObjectToDomain, bounded domain object allocation/lookup/close.
 - `lm` OpenLogger, returning a moved handle or domain object as appropriate.
@@ -83,3 +84,7 @@ not exercise every performance operation; those are checked synthetically.
 APM protocol reference (consulted, not copied):
 https://github.com/switchbrew/libnx/blob/master/nx/source/services/apm.c
 https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/apm.h
+
+Applet proxy/state/message-event support is described in
+[APPLET_RUNTIME.md](APPLET_RUNTIME.md). Historical stops above describe prior
+startup checkpoints, not the current service registry.

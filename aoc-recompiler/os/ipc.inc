@@ -43,22 +43,26 @@ static void ipc_response(uint8_t *message,uint32_t token,uint32_t result,uint32_
     if(payload_size)memcpy(message+start+16,&payload,payload_size);
     if(object)ipc_write32(message+start+16+payload_size,object);
 }
+#include "applet.inc"
+
 static void ipc_send(Ctx *c) {
     Hos *os=owner(c);Session *session=ipc_session(os,c->x[0]);
-    if(!session){c->x[0]=R_HANDLE;return;}
+    if(!session || session->kind==20){c->x[0]=R_HANDLE;return;}
     uint64_t address=c->tpidrro_el0;
     if(!hos_access(os,address,128,3)){c->x[0]=R_MEMORY;return;}
     uint8_t request[128];memcpy(request,os->memory+address,sizeof(request));
     uint32_t h0=ipc_read32(request),h1=ipc_read32(request+4),type=h0&0xffff;
-    uint32_t words=h1&0x3ff,raw=8,special=0;
+    uint32_t words=h1&0x3ff,raw=8,special=0,copies=0,process=0;
     uint32_t nx=(h0>>16)&15,na=(h0>>20)&15;
     if(nx>1 || na>1 || h0>>24 || (h1&0x7ffffc00u)) {
         stop(c,HOS_STOP_UNIMPLEMENTED,"IPC buffer descriptors/receive lists are not implemented");return;
     }
     if(h1>>31) {
         special=ipc_read32(request+8);raw=12;
-        if(special&~1u){stop(c,HOS_STOP_UNIMPLEMENTED,"IPC input handles are not implemented");return;}
-        if(special&1)raw+=8; /* PID is supplied by the host process, not this placeholder. */
+        copies=(special>>1)&15;
+        if((special&~3u) || copies>1){stop(c,HOS_STOP_UNIMPLEMENTED,"IPC input handle layout is not implemented");return;}
+        if(special&1)raw+=8;
+        if(copies){process=ipc_read32(request+raw);raw+=4;} /* PID is supplied by the host process, not this placeholder. */
     }
     uint64_t buffer=0,length=0;
     uint32_t descriptors=raw;
@@ -87,6 +91,9 @@ static void ipc_send(Ctx *c) {
         c->x[0]=0x1c01;return; /* InvalidArgument: malformed CMIF. */
     }
     uint32_t command=ipc_read32(request+start+8),token=ipc_read32(request+start+12);
+    if(copies && !((type==4 || type==6) && kind==5 && command==0)) {
+        stop(c,HOS_STOP_UNIMPLEMENTED,"copied input handles are supported only for OpenApplicationProxy");return;
+    }
     if(os->trace)fprintf(stderr,"[HOS] IPC kind=%d type=%u cmd=%u pid=%u bytes=%u\n",kind,type,command,special&1,end-start-16);
     if((nx || na) && !(kind==2 && (type==4 || type==6) && command==0)) {
         stop(c,HOS_STOP_UNIMPLEMENTED,"IPC buffer descriptors are supported only for logger packets");return;
@@ -112,6 +119,8 @@ static void ipc_send(Ctx *c) {
     if((type==5 || type==7) && command==3) { /* QueryPointerBufferSize: none supported. */
         ipc_response(os->memory+address,token,0,2,0,0,0,0);c->x[0]=0;return;
     }
+    if((type==4 || type==6) && kind>=5 && kind<=10 &&
+        applet_request(c,session,kind,domain,command,token,request+start+16,end-start-16,special&1,copies,process))return;
     if((type==4 || type==6) && kind==3) { /* apm IManager */
         if(command==0) { /* OpenSession */
             uint32_t object=domain?ipc_new_object(session,4):0;
@@ -169,7 +178,8 @@ static void ipc_send(Ctx *c) {
         if(command==1 && session->initialized && end-start-16>=8) {
             char name[9];memcpy(name,request+start+16,8);name[8]=0;
             int service_kind=!memcmp(name,"lm\0\0\0\0\0\0",8)?1:
-                             !memcmp(name,"apm\0\0\0\0\0",8)?3:-1;
+                             !memcmp(name,"apm\0\0\0\0\0",8)?3:
+                             !memcmp(name,"appletOE",8)?5:-1;
             if(service_kind>=0) {
                 uint32_t object=domain?ipc_new_object(session,service_kind):0;
                 uint32_t handle=domain?0:ipc_new_session(os,service_kind);

@@ -34,12 +34,15 @@
 #endif
 
 typedef struct { uint8_t state,permission; } Page;
-typedef struct {uint32_t handle;int initialized,kind,domain;uint32_t next_object;uint8_t objects[16];} Session;
+typedef struct {uint32_t handle;int initialized,kind,domain;uint32_t next_object;uint8_t objects[16];int event_index;} Session;
 struct Hos {
     Session sessions[64];
     uint32_t next_session,log_destination;
     uint32_t performance_config[2];
     uint8_t performance_configured[2];
+    uint32_t applet_messages[16],applet_head,applet_count;
+    uint8_t applet_events[2],applet_self_flags[24];
+    int applet_foreground,applet_running,applet_exit_locked;
     uint8_t *memory;
     Page *pages;
     uint64_t heap,image_size;
@@ -136,6 +139,11 @@ static void stop(Ctx *c,int reason,const char *message) {
     os->stop=reason;snprintf(os->message,sizeof(os->message),"%s",message);
     if(active && active->os==os)longjmp(active->target,1);
 }
+int hos_applet_post_message(Hos *os,uint32_t message) {
+    if(!os || os->applet_count==16)return 0;
+    os->applet_messages[(os->applet_head+os->applet_count)%16]=message;
+    os->applet_count++;os->applet_events[0]=1;return 1;
+}
 int hos_run(Hos *os,Ctx *c,A64Fn entry) {
     Run frame;frame.parent=active;frame.os=os;active=&frame;
     c->halted=0;os->stop=HOS_STOP_RETURNED;os->message[0]=0;
@@ -216,6 +224,26 @@ void a64_svc(Ctx *c,uint32_t id) {
     case 12: c->x[0]=thread_handle(os,c->x[1])?0:R_HANDLE;c->x[1]=(uint64_t)os->priority;return;
     case 13: if(!thread_handle(os,c->x[0]))c->x[0]=R_HANDLE;else if(c->x[1]>63)c->x[0]=R_ENUM;else{os->priority=(int)c->x[1];c->x[0]=0;}return;
     case 16: c->x[0]=0;return; /* Single main-thread profile, core 0. */
+    case 18: case 23: {
+        Session *event=ipc_session(os,c->x[0]);
+        if(!event || event->kind!=20){c->x[0]=R_HANDLE;return;}
+        if(id==23 && !os->applet_events[event->event_index]){c->x[0]=0xfa01;return;}
+        os->applet_events[event->event_index]=0;c->x[0]=0;return;
+    }
+    case 24: {
+        int32_t count=(int32_t)c->x[2];
+        if(count<0 || count>64){c->x[0]=0xee01;return;}
+        if(count && !hos_access(os,c->x[1],(uint64_t)count*4,1)){c->x[0]=R_MEMORY;return;}
+        Session *events[64];
+        for(int32_t i=0;i<count;i++) {
+            uint32_t handle;memcpy(&handle,os->memory+c->x[1]+4*i,4);
+            events[i]=ipc_session(os,handle);
+            if(!events[i] || events[i]->kind!=20){c->x[0]=R_HANDLE;return;}
+        }
+        for(int32_t i=0;i<count;i++)if(os->applet_events[events[i]->event_index]){c->x[0]=0;c->x[1]=(uint32_t)i;return;}
+        if(!c->x[3]){c->x[0]=0xea01;return;}
+        stop(c,HOS_STOP_UNIMPLEMENTED,"blocking event wait requires a scheduler/host event source");return;
+    }
     case 22:
         {Session *session=ipc_session(os,c->x[0]);if(session){session->handle=0;c->x[0]=0;return;}}
         if(c->x[0]==HOS_MAIN_HANDLE && os->thread_open){os->thread_open=0;c->x[0]=0;}
