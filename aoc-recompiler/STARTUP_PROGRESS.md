@@ -23,8 +23,9 @@ with 1086 files. The real guest successfully read its RomFS header, directory
 hash/table and file hash/table (six storage reads). The filesystem worker thread
 also runs. DLC remains excluded from the base mount.
 
-The current explicit stop is `SM GetService 'vi:m': service backend is not
-implemented`. This is the display-service boundary. A rendered boot frame and
+The `vi:m` service lookup now succeeds. Typed VI clients, root policies and
+logical display queries are implemented; the private probe is being extended
+with newly observed indirect display SDK targets. A rendered boot frame and
 playability are not established; GPU command processing, shaders and rendering
 remain absent. Private game execution was tested on Linux; public Windows
 runs use synthetic fixtures only. See `FS_RUNTIME.md` for the filesystem ABI.

@@ -96,3 +96,13 @@ in this document describe prior diagnostic stages, not current feature coverage.
 
 Stack mapping, cooperative guest threads and basic mutex/condition-variable waits
 are now implemented; see [KERNEL_BOOTSTRAP.md](KERNEL_BOOTSTRAP.md).
+
+VI now registers manager, system and application roots with typed display,
+manager, system and Binder clients. Root policies and client access levels are
+validated. The logical `Default` display has a reference count, 1280 by 720
+physical and logical resolution, and bounded layer Z queries. Physical dimensions
+use 64-bit outputs; logical dimensions use 32-bit outputs. The HIPC buffer spans
+its full 256-byte TLS area, leaving the kernel thread handle at TLS+0x110 intact.
+Synthetic tests cover domain framing, access restrictions and display closure.
+Layer creation, Binder transactions, GPU work and presentation remain unsupported;
+creating a display client does not establish a rendered frame.

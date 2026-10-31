@@ -36,7 +36,7 @@
 
 typedef struct { uint8_t state,permission,attribute; } Page;
 typedef struct { uint64_t src,dst,size; } Alias;
-typedef struct Session {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;uint64_t transfer_address,transfer_size;uint32_t transfer_permission,transfer_refs;int nv_index;struct Session *domain_owner;uint32_t domain_refs;} Session;
+typedef struct Session {uint32_t handle;int initialized,kind,domain,closed;uint32_t next_object;uint8_t objects[16];int event_index;uint64_t transfer_address,transfer_size;uint32_t transfer_permission,transfer_refs;int nv_index,vi_level;struct Session *domain_owner;uint32_t domain_refs;} Session;
 typedef struct { uint32_t id;uint8_t kind; } NvFd;
 typedef struct { uint32_t refs,next_fd;int initialized,transfer_index;uint64_t aruid,firmware_margin_request;NvFd fds[64]; } NvClient;
 enum { T_FREE,T_CREATED,T_READY,T_RUNNING,T_WAIT,T_EXITED };
@@ -61,11 +61,11 @@ struct Hos {
     uint64_t clock_mappings[16];uint8_t clock_page[4096];int clock_ready;int64_t clock_offset;
     GuestThread threads[64];int current_thread,main_fiber_owned,background_fault;
     uint64_t next_thread_id,background_pc,next_wait_order;char background_message[192];
-    uint32_t next_session,log_destination;
+    uint32_t next_session,log_destination,display_refs;
     uint32_t performance_config[2];
     uint8_t performance_configured[2];
     uint32_t applet_messages[16],applet_head,applet_count,applet_cpu_boost;
-    uint8_t applet_events[4],applet_self_flags[24];
+    uint8_t applet_events[64],applet_self_flags[24];
     int applet_foreground,applet_running,applet_exit_locked,applet_started,policy_initialized;
     uint8_t *memory;
     Page *pages;

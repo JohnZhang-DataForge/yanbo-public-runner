@@ -12,7 +12,7 @@ static Session *ipc_session(Hos *os,uint64_t handle) {
 static uint32_t ipc_allocate_session(Hos *os,int kind) {
     if(os->next_session==UINT32_MAX)return 0;
     for(unsigned i=0;i<64;i++)if(!os->sessions[i].handle && !os->sessions[i].transfer_refs && !os->sessions[i].domain_refs) {
-        Session *s=&os->sessions[i];memset(s,0,sizeof(*s));s->kind=kind;s->handle=++os->next_session;return s->handle;
+        Session *s=&os->sessions[i];memset(s,0,sizeof(*s));s->kind=kind;s->vi_level=kind==40?2:kind==46?1:0;s->handle=++os->next_session;return s->handle;
     }
     return 0;
 }
@@ -54,7 +54,7 @@ static void ipc_release_domain(Session *session) {
     session->domain_owner=NULL;
 }
 static void ipc_response(uint8_t *message,uint32_t token,uint32_t result,uint32_t payload_size,uint32_t payload,uint32_t moved_handle,int domain,uint32_t object) {
-    memset(message,0,128);
+    memset(message,0,256);
     ipc_write32(message+4,((32+(domain?16:0)+payload_size+(object?4:0)+3)/4)|(moved_handle?0x80000000u:0));
     if(moved_handle){ipc_write32(message+8,1u<<5);ipc_write32(message+12,moved_handle);}
     uint32_t start=16;
@@ -70,14 +70,15 @@ static void ipc_response(uint8_t *message,uint32_t token,uint32_t result,uint32_
 #include "nvdrv.inc"
 #include "time.inc"
 #include "fs.inc"
+#include "vi.inc"
 
 static void ipc_send(Ctx *c) {
     Hos *os=owner(c);Session *session=ipc_session(os,c->x[0]);
-    if(!session || (session->kind==20 || session->kind>=30)){c->x[0]=R_HANDLE;return;}
+    if(!session || (session->kind==20 || (session->kind>=30 && session->kind<=32))){c->x[0]=R_HANDLE;return;}
     if(session->closed){c->x[0]=0xf601;return;} /* Peer closed; client handle still needs CloseHandle. */
     uint64_t address=c->tpidrro_el0;
-    if(!hos_access(os,address,128,3)){c->x[0]=R_MEMORY;return;}
-    uint8_t request[128];memcpy(request,os->memory+address,sizeof(request));
+    if(!hos_access(os,address,256,3)){c->x[0]=R_MEMORY;return;}
+    uint8_t request[256];memcpy(request,os->memory+address,sizeof(request));
     uint32_t h0=ipc_read32(request),h1=ipc_read32(request+4),type=h0&0xffff;
     if(os->trace)fprintf(stderr,"[HOS] HIPC handle=%#x h0=%#x h1=%#x\n",session->handle,h0,h1);
     uint32_t words=h1&0x3ff,raw=8,special=0,copies=0,process=0,handles[2]={0};
@@ -96,13 +97,13 @@ static void ipc_send(Ctx *c) {
     uint64_t buffer=0,length=0,recv_buffer=0,recv_length=0;
     uint32_t descriptors=raw;
     raw+=nx*8+(na+nb)*12;
-    if(raw>128){c->x[0]=R_SIZE;return;}
-    if(words>(128-raw)/4){c->x[0]=R_SIZE;return;}
+    if(raw>256){c->x[0]=R_SIZE;return;}
+    if(words>(256-raw)/4){c->x[0]=R_SIZE;return;}
     uint32_t end=raw+words*4,start=(raw+15)&~15u;
     if(type==2 && !words && !special) {
         if(session->kind==18){uint32_t result=nv_release_session(os,session);if(result){c->x[0]=result;return;}}
         ipc_release_domain(session);
-        session->closed=1;memset(os->memory+address,0,128);c->x[0]=0;return;
+        session->closed=1;memset(os->memory+address,0,256);c->x[0]=0;return;
     }
     if(type!=4 && type!=6 && type!=5 && type!=7) {
         stop(c,HOS_STOP_UNIMPLEMENTED,"IPC message type is not implemented");return;
@@ -114,7 +115,7 @@ static void ipc_send(Ctx *c) {
         uint32_t dh=ipc_read32(request+start),object=ipc_read32(request+start+4),size=dh>>16;
         if(!object || object>15 || !table->objects[object]){if(os->trace)fprintf(stderr,"[HOS] invalid domain object %#x header %#x session %#x next=%u\n",object,dh,session->handle,table->next_object);c->x[0]=R_HANDLE;return;}
         if((dh&0xff)==2 && !(dh&0xff00)) {
-            table->objects[object]=0;memset(os->memory+address,0,128);c->x[0]=0;return;
+            table->objects[object]=0;memset(os->memory+address,0,256);c->x[0]=0;return;
         }
         if((dh&0xffff)!=1 || size<16 || size>end-start-16){c->x[0]=0x1c01;return;}
         kind=table->objects[object]-1;start+=16;end=start+size;
@@ -170,6 +171,8 @@ static void ipc_send(Ctx *c) {
         clone->domain_owner=table;table->domain_refs++;
         ipc_response(os->memory+address,token,0,0,0,handle,0,0);c->x[0]=0;return;
     }
+    if((type==4 || type==6) && kind>=40 && kind<=47 &&
+        vi_request(c,session,kind,domain,command,token,request+start+16,end-start-16))return;
     if((type==4 || type==6) && (kind==26 || kind==27) &&
         fs_request(c,session,kind,domain,command,token,request+start+16,end-start-16,special&1,recv_buffer,recv_length,nb))return;
     if((type==4 || type==6) && kind==18 &&
@@ -236,7 +239,10 @@ static void ipc_send(Ctx *c) {
         }
         if(command==1 && session->initialized && end-start-16>=8) {
             char name[9];memcpy(name,request+start+16,8);name[8]=0;
-            int service_kind=!memcmp(name,"fsp-srv\0",8)?26:
+            int service_kind=!memcmp(name,"vi:m\0\0\0\0",8)?40:
+                             !memcmp(name,"vi:s\0\0\0\0",8)?46:
+                             !memcmp(name,"vi:u\0\0\0\0",8)?47:
+                             !memcmp(name,"fsp-srv\0",8)?26:
                              !memcmp(name,"time:u\0\0",8)?19:
                              (!memcmp(name,"nvdrv\0\0\0",8) || !memcmp(name,"nvdrv:a\0",8) ||
                               !memcmp(name,"nvdrv:s\0",8) || !memcmp(name,"nvdrv:t\0",8))?18:
@@ -246,7 +252,7 @@ static void ipc_send(Ctx *c) {
                              !memcmp(name,"aoc:u\0\0\0",8)?15:
                              (!memcmp(name,"pctl\0\0\0\0",8) || !memcmp(name,"pctl:s\0\0",8) ||
                               !memcmp(name,"pctl:r\0\0",8) || !memcmp(name,"pctl:a\0\0",8))?16:-1;
-            if((service_kind==18 || service_kind==26) && domain){stop(c,HOS_STOP_UNIMPLEMENTED,"nvdrv/fsp-srv domain service factories are not supported");return;}
+            if((service_kind==18 || service_kind==26 || service_kind==40 || service_kind==46 || service_kind==47) && domain){stop(c,HOS_STOP_UNIMPLEMENTED,"nvdrv/fsp-srv domain service factories are not supported");return;}
             if(service_kind>=0) {
                 uint32_t object=domain?ipc_new_object(session,service_kind):0;
                 uint32_t handle=domain?0:ipc_new_session(os,service_kind);
